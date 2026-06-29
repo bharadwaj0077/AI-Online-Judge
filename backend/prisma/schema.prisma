@@ -1,0 +1,209 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum UserRole {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ProblemVisibility {
+  DRAFT
+  PRIVATE
+  PUBLIC
+  ARCHIVED
+}
+
+enum Verdict {
+  PENDING
+  COMPILING
+  RUNNING
+  ACCEPTED
+  WRONG_ANSWER
+  COMPILATION_ERROR
+  RUNTIME_ERROR
+  TIME_LIMIT_EXCEEDED
+  MEMORY_LIMIT_EXCEEDED
+  SYSTEM_ERROR
+}
+
+// ==========================================
+// MODELS
+// ==========================================
+
+model User {
+  id               BigInt     @id @default(autoincrement()) @map("id")
+  publicId         String     @unique @default(uuid()) @db.Uuid @map("public_id")
+  username         String     @db.VarChar(30) @map("username")
+  email            String     @db.VarChar(255) @map("email")
+  passwordHash     String     @db.Text @map("password_hash")
+  fullName         String?    @db.VarChar(100) @map("full_name")
+  avatarKey        String?    @db.Text @map("avatar_key")
+  bio              String?    @db.Text @map("bio")
+  country          String?    @db.VarChar(100) @map("country")
+  role             UserRole   @default(USER) @map("role")
+  problemsSolved   Int        @default(0) @map("problems_solved")
+  submissionsCount Int        @default(0) @map("submissions_count")
+  createdAt        DateTime   @default(now()) @db.Timestamptz @map("created_at")
+  updatedAt        DateTime   @updatedAt @db.Timestamptz @map("updated_at")
+  deletedAt        DateTime?  @db.Timestamptz @map("deleted_at")
+
+  // Relationships
+  createdProblems Problem[]
+  submissions     Submission[]
+
+  // Partial unique indexes for professional soft-delete compatibility
+  @@unique([email], map: "idx_users_email_active", where: { deletedAt: null })
+  @@unique([username], map: "idx_users_username_active", where: { deletedAt: null })
+  @@index([role])
+  @@map("users")
+}
+
+model Problem {
+  id              BigInt            @id @default(autoincrement()) @map("id")
+  publicId        String            @unique @default(uuid()) @db.Uuid @map("public_id")
+  title           String            @db.VarChar(255) @map("title")
+  slug            String            @db.VarChar(255) @map("slug")
+  statement       String            @db.Text @map("statement")
+  inputFormat     String            @db.Text @map("input_format")
+  outputFormat    String            @db.Text @map("output_format")
+  constraintsText String            @db.Text @map("constraints_text")
+  editorial       String?           @db.Text @map("editorial")
+  difficulty      Difficulty        @map("difficulty")
+  visibility      ProblemVisibility @default(DRAFT) @map("visibility")
+  timeLimitMs     Int               @map("time_limit_ms")
+  memoryLimitMb   Int               @map("memory_limit_mb")
+  acceptedCount   Int               @default(0) @map("accepted_count")
+  submissionCount Int               @default(0) @map("submission_count")
+  authorId        BigInt?           @map("author_id")
+  createdAt       DateTime          @default(now()) @db.Timestamptz @map("created_at")
+  updatedAt       DateTime          @updatedAt @db.Timestamptz @map("updated_at")
+  deletedAt       DateTime?         @db.Timestamptz @map("deleted_at")
+
+  // Relationships
+  author      User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  testCases   TestCase[]
+  submissions Submission[]
+  problemTags ProblemTag[]
+
+  @@unique([slug], map: "idx_problems_slug_active", where: { deletedAt: null })
+  @@index([difficulty])
+  @@index([visibility])
+  @@index([authorId])
+  @@map("problems")
+}
+
+model Language {
+  id                   BigInt   @id @default(autoincrement()) @map("id")
+  publicId             String   @unique @default(uuid()) @db.Uuid @map("public_id")
+  name                 String   @db.VarChar(50) @map("name")
+  displayName          String   @db.VarChar(100) @map("display_name")
+  slug                 String   @unique @db.VarChar(50) @map("slug")
+  languageBase         String   @db.VarChar(50) @map("language_base")
+  version              String   @db.VarChar(30) @map("version")
+  fileExtension        String   @db.VarChar(10) @map("file_extension")
+  dockerImage          String   @db.Text @map("docker_image")
+  compileCommand       String?  @db.Text @map("compile_command")
+  runCommand           String   @db.Text @map("run_command")
+  isCompiled           Boolean  @map("is_compiled")
+  memoryLimitSupported Boolean  @default(true) @map("memory_limit_supported")
+  timeMultiplier       Float    @default(1.0) @map("time_multiplier")
+  executionOrder       Int      @map("execution_order")
+  isActive             Boolean  @default(true) @map("is_active")
+  createdAt            DateTime @default(now()) @db.Timestamptz @map("created_at")
+  updatedAt            DateTime @updatedAt @db.Timestamptz @map("updated_at")
+
+  // Relationships
+  submissions Submission[]
+
+  @@index([slug])
+  @@index([executionOrder])
+  @@map("languages")
+}
+
+model TestCase {
+  id               BigInt   @id @default(autoincrement()) @map("id")
+  problemId        BigInt   @map("problem_id")
+  orderNo          Int      @default(0) @map("order_no")
+  inputData        String?  @db.Text @map("input_data")
+  expectedOutput   String?  @db.Text @map("expected_output")
+  inputStorageKey  String?  @db.Text @map("input_storage_key")
+  outputStorageKey String?  @db.Text @map("output_storage_key")
+  isSample         Boolean  @default(false) @map("is_sample")
+  weight           Int      @default(1) @map("weight")
+  createdAt        DateTime @default(now()) @db.Timestamptz @map("created_at")
+
+  // Relationships
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  // Compound index for fast ordered test retrieval
+  @@index([problemId, orderNo])
+  @@index([isSample])
+  @@map("test_cases")
+}
+
+model Submission {
+  id              BigInt   @id @default(autoincrement()) @map("id")
+  publicId        String   @unique @default(uuid()) @db.Uuid @map("public_id")
+  userId          BigInt   @map("user_id")
+  problemId       BigInt   @map("problem_id")
+  languageId      BigInt   @map("language_id")
+  sourceCode      String   @db.Text @map("source_code")
+  verdict         Verdict  @default(PENDING) @map("verdict")
+  score           Int?     @map("score")
+  executionTimeMs Int?     @map("execution_time_ms")
+  memoryUsedKb    Int?     @map("memory_used_kb")
+  submittedAt     DateTime @default(now()) @db.Timestamptz @map("submitted_at")
+
+  // Relationships
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem  Problem  @relation(fields: [problemId], references: [id], onDelete: Restrict)
+  language Language @relation(fields: [languageId], references: [id], onDelete: Restrict)
+
+  // High-concurrency query path indexes
+  @@index([userId, problemId])
+  @@index([verdict])
+  @@index([languageId])
+  @@index([submittedAt])
+  @@map("submi  ssions")
+}
+
+model Tag {
+  id        BigInt   @id @default(autoincrement()) @map("id")
+  name      String   @unique @db.VarChar(50) @map("name")
+  createdAt DateTime @default(now()) @db.Timestamptz @map("created_at")
+
+  // Relationships
+  problemTags ProblemTag[]
+
+  @@map("tags")
+}
+
+model ProblemTag {
+  problemId BigInt @map("problem_id")
+  tagId     BigInt @map("tag_id")
+
+  // Relationships
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([problemId, tagId])
+  @@index([tagId])
+  @@map("problem_tags")
+}
