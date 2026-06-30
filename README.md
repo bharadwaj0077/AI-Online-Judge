@@ -49,3 +49,40 @@ backend/
 │   ├── services/        # Atomic business execution logic and Prisma queries
 │   ├── app.ts           # Middleware strapping core
 │   └── server.ts        # Database pooling validation and network port listeners
+```
+## 🔐 Architectural Anatomy: Authentication Subsystem
+
+We engineered a production-grade Layered (N-Tier) Architecture to handle user identity and session management. Every incoming network request to the auth boundary passes through structural validation, credential verification, and secure session issuance before touching the PostgreSQL database.
+
+### Core Network Layer Baselines
+
+- **Base URL Prefix:** `/api/v1`
+- **Default Transportation Format:** `application/json`
+- **Session Transport Layer:** Server-signed JWTs packed into stateful, secure `HttpOnly` cookies to isolate sessions from browser scripting memory vulnerabilities.
+
+### Core Auth API
+
+4 REST endpoints are exposed under the unified path prefix `/api/v1/auth` (plus a top-level health probe), covering account registration with Zod-validated, uniqueness-checked, Bcrypt-hashed credentials; login with JWT issuance into a secure cookie; and instant session termination on logout. Full endpoint details are documented in [`api.md`](./api.md).
+
+### Testing Discipline
+
+The automated Postman collection validates the auth subsystem across integration testing (Postman → Express Router → Zod Engine → Bcrypt → Database, and back) and boundary/edge-case testing: duplicate email and username collisions, malformed username patterns, short-password rejection, missing required keys, mismatched login credentials, unregistered usernames, and empty payload boundaries. All 12 test scenarios in the Auth suite currently pass at a 100% standard, with response envelopes, validation error layouts, and secure cookie headers all matching design patterns exactly.
+
+## 🏗️ Architectural Anatomy: Problem Management Subsystem
+
+We engineered a production-grade Layered (N-Tier) Architecture to handle programming challenges. Instead of writing messy, tightly-coupled code, the system forces every incoming network request to pass through an isolated multi-stage pipeline before it ever touches the PostgreSQL database.
+
+### The 4 Tiers of the Problem Subsystem
+
+- **The Security Guard Layer** (`auth.middleware.ts`): Operates as a double-blind firewall. It extracts the encrypted session token from incoming cookies, verifies its signature against `JWT_SECRET`, and attaches the user's role data directly to the request stream.
+- **The Interface Controller Layer** (`problem.controller.ts`): The manager of the REST boundaries. It uses Zod schemas to structurally validate request data, parses route parameters (like raw URL slugs or client-facing UUIDs), and packages outgoings into uniform JSON envelopes.
+- **The Core Business Engine Layer** (`problem.service.ts`): The brains of the operation. It calculates web-safe URL slugs on the fly, resolves unique namespace collisions if two problems share a title, and maps raw JavaScript variables to SQL primitives.
+- **The Persistence Access Layer** (`schema.prisma`): Executes optimized reads, updates, and writes directly inside the PostgreSQL database via the high-performance Prisma 7 driver singleton.
+
+### Core Problems API
+
+5 REST endpoints are exposed under the unified path prefix `/api/v1/problems`, covering problem creation (admin-only), directory listing (role-aware visibility), individual lookup by slug, structural updates with automatic slug recalculation, and soft-delete archiving that preserves historical submission logs. Full endpoint details are documented in [`api.md`](./api.md).
+
+### Testing Discipline
+
+The automated Postman collection validates the subsystem across four testing disciplines: integration testing (full request pipeline, Postman → Express → Zod → Middleware → Service → Prisma → PostgreSQL), security and authorization matrix testing (anonymous request rejection, privilege escalation blocking), input validation boundary testing (empty payloads, out-of-range resource limits), and state/isolation regression testing (soft-deleted items correctly returning 404 on subsequent lookups). All 11 test scenarios in the Problems suite currently pass at a 100% standard.
