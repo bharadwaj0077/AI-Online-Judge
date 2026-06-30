@@ -1,0 +1,7 @@
+$kind: collection
+name: '02 - Create Problem'
+description: |-
+  Tests for POST /problems (Admin access enforced).
+  Covers Zod schema validation failures and the happy-path creation that seeds
+  the `problemPublicId` and `problemSlug` collection variables for downstream tests.
+order: 2000

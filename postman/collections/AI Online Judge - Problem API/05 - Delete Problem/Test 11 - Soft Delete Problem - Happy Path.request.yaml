@@ -1,0 +1,32 @@
+$kind: http-request
+name: 'Test 11: Soft Delete Problem - Happy Path'
+method: DELETE
+url: '{{baseUrl}}/api/v1/problems/{{problemPublicId}}'
+description: |-
+  Sends DELETE /problems/:publicId as an ADMIN using the `problemPublicId` collection variable.
+  Expected: 200 OK — the problem is soft-deleted (not permanently removed from the database).
+
+  ## Prerequisite
+  Test 5 must have run successfully so that `problemPublicId` collection variable is populated.
+order: 1000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Test 11 — Status is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Test 11 — Response has success: true", function () {
+          const json = pm.response.json();
+          pm.expect(json.success).to.be.true;
+      });
+
+      pm.test("Test 11 — Response body has a message field", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("message");
+      });
+
+      pm.test("Test 11 — Response time is under 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });

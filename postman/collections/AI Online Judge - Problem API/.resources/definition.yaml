@@ -1,0 +1,18 @@
+$kind: collection
+name: 'AI Online Judge - Problem API'
+description: |-
+  Complete test suite for the Problem Management Subsystem (CRUD).
+  Covers authentication guards, create, read, update, and soft-delete operations.
+  Base URL: http://localhost:5000/api/v1/problems
+
+  ## Role Strategy
+  - Admin requests use the `token` HttpOnly cookie set after logging in as an ADMIN user.
+  - Regular-user requests use the `token` cookie set after logging in as a USER-role account.
+  - Collection variables `problemPublicId` and `problemSlug` are captured dynamically by Test 5.
+variables:
+  - key: problemPublicId
+    value: ''
+    description: 'Captured dynamically from Test 5 (Create Problem - Happy Path)'
+  - key: problemSlug
+    value: ''
+    description: 'Captured dynamically from Test 5 (Create Problem - Happy Path)'

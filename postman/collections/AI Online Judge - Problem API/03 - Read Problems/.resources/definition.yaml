@@ -1,0 +1,7 @@
+$kind: collection
+name: '03 - Read Problems'
+description: |-
+  Tests for GET /problems and GET /problems/:slug.
+  Verifies list retrieval, individual problem lookup by slug, and 404 handling
+  for non-existent slugs.
+order: 3000

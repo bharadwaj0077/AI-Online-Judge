@@ -1,0 +1,47 @@
+$kind: http-request
+name: "Test 1: Create Problem - No Session Cookie"
+method: POST
+url: "{{baseUrl}}/api/v1/problems"
+description: |-
+  Sends a POST /problems request with NO token cookie.
+  Expected: 401 Unauthorized — the requireAuth middleware must reject the request
+  before it reaches any business logic.
+examples: .resources/Test 1 - Create Problem - No Session Cookie.resources/examples
+order: 1000
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Ghost Request",
+      "statement": "This request has no auth cookie and should be rejected immediately.",
+      "inputFormat": "None",
+      "outputFormat": "None",
+      "constraintsText": "None",
+      "difficulty": "EASY",
+      "visibility": "DRAFT",
+      "timeLimitMs": 1000,
+      "memoryLimitMb": 256
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Test 1 — Status is 401 Unauthorized", function () {
+          pm.response.to.have.status(401);
+      });
+
+      pm.test("Test 1 — Response body has a message field", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("message");
+      });
+
+      pm.test("Test 1 — Response does NOT contain problem data", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.not.have.property("data");
+      });
+
+      pm.test("Test 1 — Response time is under 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });
+    language: text/javascript

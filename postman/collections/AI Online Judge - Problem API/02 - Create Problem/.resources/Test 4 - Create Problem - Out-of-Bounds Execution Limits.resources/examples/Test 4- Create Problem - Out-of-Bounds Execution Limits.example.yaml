@@ -1,0 +1,28 @@
+$kind: http-example
+name: "Test 4: Create Problem - Out-of-Bounds Execution Limits"
+request:
+  url: "{{baseUrl}}/api/v1/problems"
+  method: POST
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "title": "Bounds Breaker",
+        "statement": "This problem payload intentionally violates execution limit constraints.",
+        "inputFormat": "Single integer N",
+        "outputFormat": "Single integer",
+        "constraintsText": "1 <= N <= 100",
+        "difficulty": "EASY",
+        "visibility": "DRAFT",
+        "timeLimitMs": 50,
+        "memoryLimitMb": 4096
+      }
+response:
+  statusCode: 200
+  statusText: OK
+  body:
+    type: json
+    content: ""
+order: 1782842054757

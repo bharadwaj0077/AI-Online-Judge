@@ -1,0 +1,28 @@
+$kind: http-example
+name: "Test 2: Create Problem - Regular User Privileges"
+request:
+  url: "{{baseUrl}}/api/v1/problems"
+  method: POST
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "title": "Unauthorized Injection",
+        "statement": "A regular user is attempting to create a problem — this must be blocked.",
+        "inputFormat": "Single integer N",
+        "outputFormat": "Single integer",
+        "constraintsText": "1 <= N <= 100",
+        "difficulty": "EASY",
+        "visibility": "DRAFT",
+        "timeLimitMs": 1000,
+        "memoryLimitMb": 256
+      }
+response:
+  statusCode: 200
+  statusText: OK
+  body:
+    type: json
+    content: ""
+order: 1782842026298

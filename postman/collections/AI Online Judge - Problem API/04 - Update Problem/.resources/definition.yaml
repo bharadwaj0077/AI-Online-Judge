@@ -1,0 +1,7 @@
+$kind: collection
+name: '04 - Update Problem'
+description: |-
+  Tests for PUT /problems/:publicId (Admin access enforced).
+  Covers the happy-path update (verifying dynamic slug recalculation) and
+  the 404/400 response for an invalid or non-existent publicId.
+order: 4000

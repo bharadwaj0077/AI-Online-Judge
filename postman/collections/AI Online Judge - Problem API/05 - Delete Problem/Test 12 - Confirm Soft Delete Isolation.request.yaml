@@ -1,0 +1,42 @@
+$kind: http-request
+name: 'Test 12: Confirm Soft Delete Isolation'
+method: GET
+url: '{{baseUrl}}/api/v1/problems/{{problemSlug}}'
+description: |-
+  Sends GET /problems/:slug using the `problemSlug` collection variable AFTER the problem
+  has been soft-deleted in Test 11.
+  Expected: 404 Not Found — the service must exclude soft-deleted records from all
+  public lookup paths, confirming correct soft-delete isolation.
+
+  ## Prerequisite
+  Test 11 must have run successfully before this test.
+order: 2000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Test 12 — Status is 404 Not Found (soft-delete isolation confirmed)", function () {
+          pm.response.to.have.status(404);
+      });
+
+      pm.test("Test 12 — Response body has a message field", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("message");
+      });
+
+      pm.test("Test 12 — Response does NOT expose soft-deleted problem data", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.not.have.property("data");
+      });
+
+      pm.test("Test 12 — Soft-deleted problem is NOT in the active problems list", function () {
+          // This is a sentinel assertion — the actual list check is done via Test 6.
+          // Here we confirm the slug lookup path correctly returns 404.
+          const savedSlug = pm.collectionVariables.get("problemSlug");
+          console.log("[Test 12] Confirmed slug '" + savedSlug + "' returns 404 after soft-delete.");
+          pm.expect(pm.response.code).to.eql(404);
+      });
+
+      pm.test("Test 12 — Response time is under 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });

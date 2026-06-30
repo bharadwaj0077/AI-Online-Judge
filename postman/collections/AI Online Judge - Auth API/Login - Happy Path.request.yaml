@@ -1,12 +1,11 @@
 $kind: http-request
-name: Login - Happy Path
 method: POST
-url: '{{baseUrl}}/api/v1/auth/login'
+url: "{{baseUrl}}/api/v1/auth/login"
 description: Logs in with valid credentials. Expects 200, JWT cookie set, and user data in response.
+examples: .resources/Login - Happy Path.resources/examples
 order: 8000
 headers:
-  - key: Content-Type
-    value: application/json
+  Content-Type: application/json
 body:
   type: json
   content: |-
@@ -16,7 +15,6 @@ body:
     }
 scripts:
   - type: afterResponse
-    language: text/javascript
     code: |-
       pm.test("Status code is 200", function () {
         pm.response.to.have.status(200);
@@ -56,3 +54,4 @@ scripts:
       pm.test("Response time is under 2000ms", function () {
         pm.expect(pm.response.responseTime).to.be.below(2000);
       });
+    language: text/javascript

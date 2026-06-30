@@ -1,0 +1,29 @@
+$kind: http-request
+name: 'Test 8: Fetch Non-Existent Challenge'
+method: GET
+url: '{{baseUrl}}/api/v1/problems/this-slug-does-not-exist'
+description: |-
+  Sends GET /problems/:slug with a slug that does not exist in the database.
+  Expected: 404 Not Found — the service must return a clear not-found error.
+order: 3000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Test 8 — Status is 404 Not Found", function () {
+          pm.response.to.have.status(404);
+      });
+
+      pm.test("Test 8 — Response body has a message field", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("message");
+      });
+
+      pm.test("Test 8 — Response does NOT contain problem data", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.not.have.property("data");
+      });
+
+      pm.test("Test 8 — Response time is under 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });

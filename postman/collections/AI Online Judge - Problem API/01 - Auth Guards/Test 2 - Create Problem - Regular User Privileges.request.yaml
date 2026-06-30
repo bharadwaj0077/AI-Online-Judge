@@ -1,0 +1,52 @@
+$kind: http-request
+name: "Test 2: Create Problem - Regular User Privileges"
+method: POST
+url: "{{baseUrl}}/api/v1/problems"
+description: |-
+  Sends a POST /problems request with a valid token cookie belonging to a USER-role account.
+  Expected: 403 Forbidden — the requireAdmin middleware must block the request.
+
+  ## Setup Instructions
+  Before running this test, log in as a regular USER account so the `token` HttpOnly
+  cookie in your browser/Postman cookie jar belongs to a USER (not ADMIN) role.
+  The easiest way is to run the "Login - Happy Path" request from the Auth collection
+  after temporarily changing testUsername/testPassword to a non-admin account.
+examples: .resources/Test 2 - Create Problem - Regular User Privileges.resources/examples
+order: 2000
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Unauthorized Injection",
+      "statement": "A regular user is attempting to create a problem — this must be blocked.",
+      "inputFormat": "Single integer N",
+      "outputFormat": "Single integer",
+      "constraintsText": "1 <= N <= 100",
+      "difficulty": "EASY",
+      "visibility": "DRAFT",
+      "timeLimitMs": 1000,
+      "memoryLimitMb": 256
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Test 2 — Status is 403 Forbidden", function () {
+          pm.response.to.have.status(403);
+      });
+
+      pm.test("Test 2 — Response body has a message field", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("message");
+      });
+
+      pm.test("Test 2 — Response does NOT contain problem data", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.not.have.property("data");
+      });
+
+      pm.test("Test 2 — Response time is under 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });
+    language: text/javascript

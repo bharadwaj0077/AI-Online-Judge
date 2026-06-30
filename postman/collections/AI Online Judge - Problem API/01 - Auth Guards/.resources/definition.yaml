@@ -1,0 +1,6 @@
+$kind: collection
+name: '01 - Auth Guards'
+description: |-
+  Security matrix tests verifying that unauthenticated and under-privileged requests
+  are correctly rejected before reaching any business logic.
+order: 1000

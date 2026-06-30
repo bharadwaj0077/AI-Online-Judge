@@ -1,0 +1,58 @@
+$kind: http-request
+name: 'Test 6: Fetch All Active Problems'
+method: GET
+url: '{{baseUrl}}/api/v1/problems'
+description: |-
+  Sends GET /problems with a valid token cookie (User or Admin).
+  Expected: 200 OK — response returns an array that includes the problem created in Test 5.
+
+  ## Prerequisite
+  Test 5 must have run successfully so that `problemSlug` collection variable is populated.
+order: 1000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Test 6 — Status is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Test 6 — Response has success: true", function () {
+          const json = pm.response.json();
+          pm.expect(json.success).to.be.true;
+      });
+
+      pm.test("Test 6 — Response data is an array", function () {
+          const json = pm.response.json();
+          pm.expect(json.data).to.be.an("array");
+      });
+
+      pm.test("Test 6 — Array contains at least one problem", function () {
+          const json = pm.response.json();
+          pm.expect(json.data.length).to.be.at.least(1);
+      });
+
+      pm.test("Test 6 — Each problem has publicId, title, difficulty, and slug", function () {
+          const json = pm.response.json();
+          json.data.forEach(function (problem) {
+              pm.expect(problem).to.have.property("publicId");
+              pm.expect(problem).to.have.property("title");
+              pm.expect(problem).to.have.property("difficulty");
+              pm.expect(problem).to.have.property("slug");
+          });
+      });
+
+      pm.test("Test 6 — Newly created problem (from Test 5) is present in the list", function () {
+          const json = pm.response.json();
+          const savedSlug = pm.collectionVariables.get("problemSlug");
+          if (!savedSlug) {
+              console.warn("[Test 6] problemSlug collection variable is empty — run Test 5 first.");
+              return;
+          }
+          const found = json.data.some(function (p) { return p.slug === savedSlug; });
+          pm.expect(found, "Problem with slug '" + savedSlug + "' not found in list").to.be.true;
+      });
+
+      pm.test("Test 6 — Response time is under 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });

@@ -1,0 +1,80 @@
+$kind: http-request
+name: 'Test 7: Fetch Individual Problem Specs by Slug'
+method: GET
+url: '{{baseUrl}}/api/v1/problems/{{problemSlug}}'
+description: |-
+  Sends GET /problems/:slug using the `problemSlug` collection variable captured in Test 5.
+  Expected: 200 OK — returns the complete problem object matching the database schema.
+
+  ## Prerequisite
+  Test 5 must have run successfully so that `problemSlug` collection variable is populated.
+order: 2000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Test 7 — Status is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Test 7 — Response has success: true", function () {
+          const json = pm.response.json();
+          pm.expect(json.success).to.be.true;
+      });
+
+      pm.test("Test 7 — Response data is an object (not array)", function () {
+          const json = pm.response.json();
+          pm.expect(json.data).to.be.an("object").and.not.an("array");
+      });
+
+      pm.test("Test 7 — Problem has publicId matching collection variable", function () {
+          const json = pm.response.json();
+          const savedId = pm.collectionVariables.get("problemPublicId");
+          pm.expect(json.data).to.have.property("publicId");
+          if (savedId) {
+              pm.expect(json.data.publicId).to.eql(savedId);
+          }
+      });
+
+      pm.test("Test 7 — Problem has slug matching collection variable", function () {
+          const json = pm.response.json();
+          const savedSlug = pm.collectionVariables.get("problemSlug");
+          pm.expect(json.data).to.have.property("slug");
+          if (savedSlug) {
+              pm.expect(json.data.slug).to.eql(savedSlug);
+          }
+      });
+
+      pm.test("Test 7 — Problem contains all required schema fields", function () {
+          const json = pm.response.json();
+          const required = ["title", "statement", "inputFormat", "outputFormat",
+                            "constraintsText", "difficulty", "visibility",
+                            "timeLimitMs", "memoryLimitMb"];
+          required.forEach(function (field) {
+              pm.expect(json.data, "Missing field: " + field).to.have.property(field);
+          });
+      });
+
+      pm.test("Test 7 — difficulty is a valid enum value", function () {
+          const json = pm.response.json();
+          pm.expect(["EASY", "MEDIUM", "HARD"]).to.include(json.data.difficulty);
+      });
+
+      pm.test("Test 7 — visibility is a valid enum value", function () {
+          const json = pm.response.json();
+          pm.expect(["DRAFT", "PRIVATE", "PUBLIC", "ARCHIVED"]).to.include(json.data.visibility);
+      });
+
+      pm.test("Test 7 — timeLimitMs is within valid range (100–10000)", function () {
+          const json = pm.response.json();
+          pm.expect(json.data.timeLimitMs).to.be.at.least(100).and.at.most(10000);
+      });
+
+      pm.test("Test 7 — memoryLimitMb is within valid range (16–2048)", function () {
+          const json = pm.response.json();
+          pm.expect(json.data.memoryLimitMb).to.be.at.least(16).and.at.most(2048);
+      });
+
+      pm.test("Test 7 — Response time is under 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });

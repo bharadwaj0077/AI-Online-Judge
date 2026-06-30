@@ -1,0 +1,56 @@
+$kind: http-request
+name: "Test 4: Create Problem - Out-of-Bounds Execution Limits"
+method: POST
+url: "{{baseUrl}}/api/v1/problems"
+description: |-
+  Sends POST /problems as an ADMIN with `timeLimitMs: 50` (below 100ms minimum)
+  and `memoryLimitMb: 4096` (above 2048MB maximum).
+  Expected: 400 Bad Request — Zod must reject both out-of-range integer fields.
+
+  ## Setup
+  Ensure you are logged in as an ADMIN account so the `token` cookie is present.
+examples: .resources/Test 4 - Create Problem - Out-of-Bounds Execution Limits.resources/examples
+order: 2000
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Bounds Breaker",
+      "statement": "This problem payload intentionally violates execution limit constraints.",
+      "inputFormat": "Single integer N",
+      "outputFormat": "Single integer",
+      "constraintsText": "1 <= N <= 100",
+      "difficulty": "EASY",
+      "visibility": "DRAFT",
+      "timeLimitMs": 50,
+      "memoryLimitMb": 4096
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Test 4 — Status is 400 Bad Request", function () {
+          pm.response.to.have.status(400);
+      });
+
+      pm.test("Test 4 — Response body has a message field", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("message");
+      });
+
+      pm.test("Test 4 — Validation errors reference timeLimitMs or memoryLimitMb", function () {
+          const body = pm.response.text();
+          const mentionsLimit = body.includes("timeLimitMs") || body.includes("memoryLimitMb");
+          pm.expect(mentionsLimit, "Expected error to mention timeLimitMs or memoryLimitMb").to.be.true;
+      });
+
+      pm.test("Test 4 — Response does NOT contain problem data", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.not.have.property("data");
+      });
+
+      pm.test("Test 4 — Response time is under 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });
+    language: text/javascript

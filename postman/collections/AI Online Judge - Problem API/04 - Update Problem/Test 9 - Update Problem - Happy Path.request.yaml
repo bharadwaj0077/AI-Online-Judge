@@ -1,0 +1,80 @@
+$kind: http-request
+name: 'Test 9: Update Problem - Happy Path'
+method: PUT
+url: '{{baseUrl}}/api/v1/problems/{{problemPublicId}}'
+description: |-
+  Sends PUT /problems/:publicId as an ADMIN using the `problemPublicId` collection variable.
+  Payload modifies the title (which should trigger a new slug to be calculated by the service).
+  Expected: 200 OK — updated problem returned with a new slug reflecting the new title.
+
+  ## Prerequisite
+  Test 5 must have run successfully so that `problemPublicId` collection variable is populated.
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Two Sum Classic - Updated",
+      "statement": "Given an array of integers `nums` and an integer `target`, return the indices of the two numbers that add up to `target`. Each input has exactly one solution and you may not use the same element twice.",
+      "inputFormat": "First line: integer N. Second line: N space-separated integers. Third line: integer target.",
+      "outputFormat": "Two space-separated 0-based indices in ascending order.",
+      "constraintsText": "2 <= N <= 10^4, -10^9 <= nums[i] <= 10^9, exactly one valid answer.",
+      "difficulty": "MEDIUM",
+      "visibility": "PUBLIC",
+      "timeLimitMs": 2000,
+      "memoryLimitMb": 512
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Test 9 — Status is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Test 9 — Response has success: true", function () {
+          const json = pm.response.json();
+          pm.expect(json.success).to.be.true;
+      });
+
+      pm.test("Test 9 — Response data is an object", function () {
+          const json = pm.response.json();
+          pm.expect(json.data).to.be.an("object").and.not.an("array");
+      });
+
+      pm.test("Test 9 — Updated title is reflected in response", function () {
+          const json = pm.response.json();
+          pm.expect(json.data.title).to.eql("Two Sum Classic - Updated");
+      });
+
+      pm.test("Test 9 — Updated difficulty is reflected in response", function () {
+          const json = pm.response.json();
+          pm.expect(json.data.difficulty).to.eql("MEDIUM");
+      });
+
+      pm.test("Test 9 — Slug is dynamically recalculated from new title", function () {
+          const json = pm.response.json();
+          const oldSlug = pm.collectionVariables.get("problemSlug");
+          pm.expect(json.data).to.have.property("slug");
+          // The new slug should differ from the original because the title changed
+          pm.expect(json.data.slug).to.not.eql(oldSlug,
+              "Expected slug to be recalculated after title change");
+          // Update the collection variable so downstream tests use the new slug
+          pm.collectionVariables.set("problemSlug", json.data.slug);
+          console.log("[Test 9] Updated problemSlug to:", json.data.slug);
+      });
+
+      pm.test("Test 9 — publicId is unchanged after update", function () {
+          const json = pm.response.json();
+          const savedId = pm.collectionVariables.get("problemPublicId");
+          if (savedId) {
+              pm.expect(json.data.publicId).to.eql(savedId);
+          }
+      });
+
+      pm.test("Test 9 — Response time is under 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });

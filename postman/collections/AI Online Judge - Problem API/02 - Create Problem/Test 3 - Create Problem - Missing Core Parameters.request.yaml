@@ -1,0 +1,45 @@
+$kind: http-request
+name: "Test 3: Create Problem - Missing Core Parameters"
+method: POST
+url: "{{baseUrl}}/api/v1/problems"
+description: |-
+  Sends POST /problems as an ADMIN with an empty JSON body `{}`.
+  Expected: 400 Bad Request — Zod validation must intercept and return field-level errors.
+
+  ## Setup
+  Ensure you are logged in as an ADMIN account so the `token` cookie is present.
+examples: .resources/Test 3 - Create Problem - Missing Core Parameters.resources/examples
+order: 1000
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: "{}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Test 3 — Status is 400 Bad Request", function () {
+          pm.response.to.have.status(400);
+      });
+
+      pm.test("Test 3 — Response body has a message field", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("message");
+      });
+
+      pm.test("Test 3 — Response contains validation errors array or details", function () {
+          const json = pm.response.json();
+          // Accept either an 'errors' array or a 'details' array from Zod
+          const hasErrors = json.hasOwnProperty("errors") || json.hasOwnProperty("details");
+          pm.expect(hasErrors, "Expected 'errors' or 'details' key in response").to.be.true;
+      });
+
+      pm.test("Test 3 — Response does NOT contain problem data", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.not.have.property("data");
+      });
+
+      pm.test("Test 3 — Response time is under 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });
+    language: text/javascript

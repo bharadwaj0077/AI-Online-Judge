@@ -1,0 +1,28 @@
+$kind: http-example
+name: "Test 1: Create Problem - No Session Cookie"
+request:
+  url: "{{baseUrl}}/api/v1/problems"
+  method: POST
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "title": "Ghost Request",
+        "statement": "This request has no auth cookie and should be rejected immediately.",
+        "inputFormat": "None",
+        "outputFormat": "None",
+        "constraintsText": "None",
+        "difficulty": "EASY",
+        "visibility": "DRAFT",
+        "timeLimitMs": 1000,
+        "memoryLimitMb": 256
+      }
+response:
+  statusCode: 200
+  statusText: OK
+  body:
+    type: json
+    content: ""
+order: 1782842006670

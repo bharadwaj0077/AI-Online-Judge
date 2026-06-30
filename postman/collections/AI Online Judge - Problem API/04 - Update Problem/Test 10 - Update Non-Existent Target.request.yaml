@@ -1,0 +1,48 @@
+$kind: http-request
+name: 'Test 10: Update Non-Existent Target'
+method: PUT
+url: '{{baseUrl}}/api/v1/problems/invalid-uuid-format'
+description: |-
+  Sends PUT /problems/:publicId with a malformed / non-existent publicId.
+  Expected: 404 Not Found (problem not found) or 400 Bad Request (invalid UUID format),
+  depending on whether the service validates the UUID format before querying the database.
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Ghost Update Attempt",
+      "statement": "Attempting to update a problem that does not exist in the database.",
+      "inputFormat": "Single integer N",
+      "outputFormat": "Single integer",
+      "constraintsText": "1 <= N <= 100",
+      "difficulty": "EASY",
+      "visibility": "DRAFT",
+      "timeLimitMs": 1000,
+      "memoryLimitMb": 256
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Test 10 — Status is 404 Not Found or 400 Bad Request", function () {
+          const status = pm.response.code;
+          pm.expect([400, 404], "Expected 400 or 404 but got " + status).to.include(status);
+      });
+
+      pm.test("Test 10 — Response body has a message field", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("message");
+      });
+
+      pm.test("Test 10 — Response does NOT contain problem data", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.not.have.property("data");
+      });
+
+      pm.test("Test 10 — Response time is under 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });

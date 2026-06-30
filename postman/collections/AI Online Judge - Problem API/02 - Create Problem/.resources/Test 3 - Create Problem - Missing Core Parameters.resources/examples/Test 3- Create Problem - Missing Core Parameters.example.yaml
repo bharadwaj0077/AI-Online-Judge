@@ -1,0 +1,17 @@
+$kind: http-example
+name: "Test 3: Create Problem - Missing Core Parameters"
+request:
+  url: "{{baseUrl}}/api/v1/problems"
+  method: POST
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: "{}"
+response:
+  statusCode: 200
+  statusText: OK
+  body:
+    type: json
+    content: ""
+order: 1782842042219

@@ -1,0 +1,7 @@
+$kind: collection
+name: '05 - Delete Problem'
+description: |-
+  Tests for DELETE /problems/:publicId (Admin access enforced).
+  Verifies the soft-delete happy path and confirms that the deleted problem is
+  excluded from subsequent slug lookups (soft-delete isolation).
+order: 5000
