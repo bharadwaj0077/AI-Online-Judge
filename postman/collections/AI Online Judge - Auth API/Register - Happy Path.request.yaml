@@ -1,0 +1,56 @@
+$kind: http-request
+name: Register - Happy Path
+method: POST
+url: '{{baseUrl}}/api/v1/auth/register'
+description: Registers a new user with valid data. Expects 201 with publicId, username, email.
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "{{testUsername}}",
+      "email": "{{testEmail}}",
+      "password": "{{testPassword}}",
+      "fullName": "Test User"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 201", function () {
+        pm.response.to.have.status(201);
+      });
+
+      pm.test("Response has success true", function () {
+        const json = pm.response.json();
+        pm.expect(json.success).to.be.true;
+      });
+
+      pm.test("Response contains publicId", function () {
+        const json = pm.response.json();
+        pm.expect(json.data).to.have.property("publicId");
+        pm.expect(json.data.publicId).to.be.a("string").and.not.empty;
+      });
+
+      pm.test("Response contains username", function () {
+        const json = pm.response.json();
+        pm.expect(json.data.username).to.eql(pm.environment.get("testUsername"));
+      });
+
+      pm.test("Response contains email", function () {
+        const json = pm.response.json();
+        pm.expect(json.data.email).to.eql(pm.environment.get("testEmail"));
+      });
+
+      pm.test("Response does NOT expose passwordHash", function () {
+        const json = pm.response.json();
+        pm.expect(json.data).to.not.have.property("passwordHash");
+        pm.expect(json.data).to.not.have.property("password");
+      });
+
+      pm.test("Response time is under 2000ms", function () {
+        pm.expect(pm.response.responseTime).to.be.below(2000);
+      });

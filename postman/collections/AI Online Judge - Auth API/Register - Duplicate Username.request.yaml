@@ -1,0 +1,34 @@
+$kind: http-request
+name: Register - Duplicate Username
+method: POST
+url: '{{baseUrl}}/api/v1/auth/register'
+description: Attempts to register with an already-used username. Expects 409 conflict.
+order: 4000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "{{testUsername}}",
+      "email": "unique_{{$randomEmail}}@test.com",
+      "password": "AnotherPass123"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 409", function () {
+        pm.response.to.have.status(409);
+      });
+
+      pm.test("Response has success false", function () {
+        const json = pm.response.json();
+        pm.expect(json.success).to.be.false;
+      });
+
+      pm.test("Error message mentions username", function () {
+        const json = pm.response.json();
+        pm.expect(json.message.toLowerCase()).to.include("username");
+      });

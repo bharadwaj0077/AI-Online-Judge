@@ -1,0 +1,5 @@
+$kind: collection
+name: AI Online Judge - Auth API
+description: |-
+  Complete test suite for the AI Online Judge authentication API.
+  Covers /api/v1/auth/register, /api/v1/auth/login, /api/v1/auth/logout, and /api/v1/health endpoints.

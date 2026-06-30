@@ -1,0 +1,33 @@
+$kind: http-request
+name: Login - Non-existent User
+method: POST
+url: '{{baseUrl}}/api/v1/auth/login'
+description: Attempts login with a username that does not exist. Expects 401 with generic error.
+order: 10000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "ghost_user_xyz_404",
+      "password": "SomePassword123"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 401", function () {
+        pm.response.to.have.status(401);
+      });
+
+      pm.test("Response has success false", function () {
+        const json = pm.response.json();
+        pm.expect(json.success).to.be.false;
+      });
+
+      pm.test("Error message is generic (prevents user enumeration)", function () {
+        const json = pm.response.json();
+        pm.expect(json.message).to.include("Invalid username or password");
+      });

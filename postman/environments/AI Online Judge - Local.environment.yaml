@@ -1,0 +1,14 @@
+name: 'AI Online Judge - Local'
+values:
+  - key: baseUrl
+    value: 'http://localhost:5000'
+    enabled: true
+  - key: testUsername
+    value: 'testuser_01'
+    enabled: true
+  - key: testEmail
+    value: 'testuser01@example.com'
+    enabled: true
+  - key: testPassword
+    value: 'TestPass@123'
+    enabled: true

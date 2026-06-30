@@ -1,0 +1,34 @@
+$kind: http-request
+name: Register - Invalid Username Format
+method: POST
+url: '{{baseUrl}}/api/v1/auth/register'
+description: Sends a username with special characters (not alphanumeric/underscore). Expects 400.
+order: 5000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "bad user!",
+      "email": "valid@example.com",
+      "password": "ValidPass123"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 400", function () {
+        pm.response.to.have.status(400);
+      });
+
+      pm.test("Response has success false", function () {
+        const json = pm.response.json();
+        pm.expect(json.success).to.be.false;
+      });
+
+      pm.test("Validation errors are present", function () {
+        const json = pm.response.json();
+        pm.expect(json).to.have.property("errors");
+      });

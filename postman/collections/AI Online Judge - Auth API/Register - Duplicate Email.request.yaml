@@ -1,0 +1,35 @@
+$kind: http-request
+name: Register - Duplicate Email
+method: POST
+url: '{{baseUrl}}/api/v1/auth/register'
+description: Attempts to register with an already-used email. Expects 409 conflict.
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "anotheruser",
+      "email": "{{testEmail}}",
+      "password": "AnotherPass123",
+      "fullName": "Another User"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 409", function () {
+        pm.response.to.have.status(409);
+      });
+
+      pm.test("Response has success false", function () {
+        const json = pm.response.json();
+        pm.expect(json.success).to.be.false;
+      });
+
+      pm.test("Error message mentions email", function () {
+        const json = pm.response.json();
+        pm.expect(json.message.toLowerCase()).to.include("email");
+      });
