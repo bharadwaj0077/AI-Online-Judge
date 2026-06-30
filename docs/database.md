@@ -1,4 +1,4 @@
-# 💾 Database Design & Relational Storage Specification — CodeForge Engine
+# 💾 Database Design & Relational Storage Specification — Online Judge Engine
 
 This document outlines the complete relational data topology, advanced system optimizations, schema schemas, explicit constraints, and entity relationships implemented in **PostgreSQL 16+** using **Prisma ORM**.
 

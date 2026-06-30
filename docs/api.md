@@ -1,4 +1,4 @@
-# 🛣️ REST API Interface Specification — CodeForge Engine
+# 🛣️ REST API Interface Specification — Online Judge Engine
 
 This document outlines the operational network pathways, payload validation boundaries, cryptographic state mutations, and integration test specifications exposed by the backend routing tier via the global versioned network path prefix `/api/v1`.
 
@@ -79,7 +79,7 @@ Returned when a request fails authorization checks, hits data collisions, or tri
 ```json
 {
   "success": true,
-  "message": "CodeForge Engine Gateway Live."
+  "message": "Online Judge Engine Gateway Live."
 }
 ```
 

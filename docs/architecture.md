@@ -1,6 +1,6 @@
 # 🏛️ System Architecture Specification
 
-This document provides a comprehensive blueprint of the software design patterns, architectural layers, data flows, and security infrastructure governing the CodeForge Online Judge backend engine.
+This document provides a comprehensive blueprint of the software design patterns, architectural layers, data flows, and security infrastructure governing the Online Judge backend engine.
 
 ---
 

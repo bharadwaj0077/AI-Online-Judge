@@ -62,7 +62,7 @@ We engineered a production-grade Layered (N-Tier) Architecture to handle user id
 
 ### Core Auth API
 
-4 REST endpoints are exposed under the unified path prefix `/api/v1/auth` (plus a top-level health probe), covering account registration with Zod-validated, uniqueness-checked, Bcrypt-hashed credentials; login with JWT issuance into a secure cookie; and instant session termination on logout. Full endpoint details are documented in [`api.md`](./api.md).
+4 REST endpoints are exposed under the unified path prefix `/api/v1/auth` (plus a top-level health probe), covering account registration with Zod-validated, uniqueness-checked, Bcrypt-hashed credentials; login with JWT issuance into a secure cookie; and instant session termination on logout. Full endpoint details are documented in [`api.md`](/docs/api.md).
 
 ### Testing Discipline
 
@@ -81,7 +81,7 @@ We engineered a production-grade Layered (N-Tier) Architecture to handle program
 
 ### Core Problems API
 
-5 REST endpoints are exposed under the unified path prefix `/api/v1/problems`, covering problem creation (admin-only), directory listing (role-aware visibility), individual lookup by slug, structural updates with automatic slug recalculation, and soft-delete archiving that preserves historical submission logs. Full endpoint details are documented in [`api.md`](./api.md).
+5 REST endpoints are exposed under the unified path prefix `/api/v1/problems`, covering problem creation (admin-only), directory listing (role-aware visibility), individual lookup by slug, structural updates with automatic slug recalculation, and soft-delete archiving that preserves historical submission logs. Full endpoint details are documented in [`api.md`](/docs/api.md).
 
 ### Testing Discipline
 
@@ -105,7 +105,7 @@ This design choice matters for two reasons:
 
 ### Core Test Case API
 
-A bulk-ingestion endpoint is exposed under `/api/v1/problems/:problemPublicId/test-cases/batch`, allowing admins to upload an entire test suite for a problem in a single atomic transaction. Full endpoint details are documented in [`api.md`](./api.md).
+A bulk-ingestion endpoint is exposed under `/api/v1/problems/:problemPublicId/test-cases/batch`, allowing admins to upload an entire test suite for a problem in a single atomic transaction. Full endpoint details are documented in [`api.md`](/docs/api.md).
 
 ### Data Integrity Verified
 
