@@ -2,6 +2,7 @@ import { Router } from "express";
 import { ProblemController, createProblemSchema } from "../controllers/problem.controller";
 import { validateBody } from "../middlewares/validation.middleware";
 import { requireAuth, requireAdmin } from "../middlewares/auth.middleware";
+import testCaseRoutes from "./testcase.routes"; 
 
 const router = Router();
 
@@ -21,5 +22,8 @@ router.put("/:publicId", requireAuth, requireAdmin, validateBody(createProblemSc
 
 // 5. Archive / Soft-Delete a Challenge (Strict Admin Clearance Required)
 router.delete("/:publicId", requireAuth, requireAdmin, ProblemController.delete);
+
+// 2. Mount the nested sub-resource routing engine at the bottom
+router.use("/:problemPublicId/test-cases", testCaseRoutes);
 
 export default router;
