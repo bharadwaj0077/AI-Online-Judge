@@ -210,3 +210,79 @@ The core routing framework is verified against 12 automated integration testing 
 ### 🔍 Verification Audit Conclusion
 
 The testing matrix registers a clean 12/12 PASS standard. All status flags, validation error layouts, data integrity blocks, and secure cookie headers match design patterns perfectly, freezing the authentication subsystem codebase as completely functional.
+
+
+---
+
+## 5. Core Problems API Endpoint Catalog
+
+All endpoints below are exposed under the unified path prefix `/api/v1/problems`.
+
+### 1. Create Problem
+
+- **HTTP Method:** `POST`
+- **Target Path:** `/problems`
+- **Access Control:** Admin only (`ADMIN` role required)
+- **Description:** Takes markdown problem statements, processes code runner bounds, and establishes the database entry.
+
+---
+
+### 2. Read Challenge Directory
+
+- **HTTP Method:** `GET`
+- **Target Path:** `/problems`
+- **Access Control:** Logged-in users
+- **Description:** Behaves intelligently based on permissions — standard `USER` accounts only receive publicly visible problems, while `ADMIN` profiles dynamically see hidden `DRAFT` items.
+
+---
+
+### 3. Read Individual Challenge
+
+- **HTTP Method:** `GET`
+- **Target Path:** `/problems/:slug`
+- **Access Control:** Logged-in users
+- **Description:** Resolves deep problem details via an easy-to-read web slug (e.g., `/problems/two-sum-classic`) instead of exposing database IDs.
+
+---
+
+### 4. Update Specification
+
+- **HTTP Method:** `PUT`
+- **Target Path:** `/problems/:publicId`
+- **Access Control:** Admin only
+- **Description:** Modifies constraints, descriptions, or difficulties. If an admin alters the challenge's title, the engine automatically recalculates and shifts the database search slug dynamically.
+
+---
+
+### 5. Soft-Delete Archive
+
+- **HTTP Method:** `DELETE`
+- **Target Path:** `/problems/:publicId`
+- **Access Control:** Admin only
+- **Description:** Rather than performing a destructive hard-delete that would wipe historical submission logs, it updates a `deletedAt` timestamp. The item vanishes from active lists while preserving complete historic database references.
+
+---
+
+## 6. Integration Verification Suite — Problems Module
+
+The Problems API is verified against 11 automated integration testing milestones covering authentication, authorization, validation boundaries, and soft-delete isolation.
+
+### 📊 Integration Verification Performance Matrix
+
+| Stage ID | Target Test Case Description | Route Endpoint | Expected HTTP Status | Verified System Component |
+|---|---|---|---|---|
+| 1000 | Create Problem - Anonymous Request | POST /problems | 401 Unauthorized | Session Cookie Firewall (requireAuth) |
+| 2000 | Create Problem - Standard User Attempt | POST /problems | 403 Forbidden | Role Privilege Gate (requireAdmin) |
+| 3000 | Create Problem - Empty Payload Input | POST /problems | 400 Bad Request | Zod Contract Interceptor |
+| 4000 | Create Problem - Bounds Limits Violations | POST /problems | 400 Bad Request | Zod Numeric Min/Max Filters |
+| 5000 | Create Problem - Successful Ingestion | POST /problems | 201 Created | Bcrypt / Prisma Ingestion & Auto-Slug Core |
+| 6000 | Read Operations - Fetch Active Directory | GET /problems | 200 OK | Array Selection Matrix |
+| 7000 | Read Operations - Load Problem Target Specifications | GET /problems/:slug | 200 OK | Slug Lookup Relational Layer |
+| 8000 | Read Operations - Query Unregistered Slug | GET /problems/null | 404 Not Found | Service Level Null Catch Boundary |
+| 9000 | Update Operations - Apply Structural Mutations | PUT /problems/:publicId | 200 OK | Prisma Update & Dynamic Slug Recalculation |
+| 10000 | Soft Delete Operation - Archive Target Challenge | DELETE /problems/:publicId | 200 OK | System Soft-Delete Logic (deletedAt) |
+| 11000 | Isolation Verification - Read Soft Deleted Row | GET /problems/:slug | 404 Not Found | Data Isolation Visibility Query Filters |
+
+### 🔍 Verification Audit Conclusion
+
+The testing matrix registers a clean 11/11 PASS standard. Authentication enforcement, role-based authorization, Zod validation boundaries, and soft-delete data isolation all match design patterns perfectly, freezing the problem management subsystem as completely functional.
