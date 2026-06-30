@@ -286,3 +286,64 @@ The Problems API is verified against 11 automated integration testing milestones
 ### 🔍 Verification Audit Conclusion
 
 The testing matrix registers a clean 11/11 PASS standard. Authentication enforcement, role-based authorization, Zod validation boundaries, and soft-delete data isolation all match design patterns perfectly, freezing the problem management subsystem as completely functional.
+
+---
+
+## 7. Core Test Case API Endpoint Catalog
+
+Test case routes are nested sub-resources, mounted under their parent problem via the path prefix `/api/v1/problems/:problemPublicId/test-cases`.
+
+### 1. Batch Upload Test Cases
+
+- **HTTP Method:** `POST`
+- **Target Path:** `/problems/:problemPublicId/test-cases/batch`
+- **Access Control:** Admin only
+- **Description:** Accepts an array of test case objects and ingests them as a single atomic transaction. Resolves the parent problem's `publicId` to its internal numeric `id`, deletes any existing test cases for that problem (`deleteMany`), then inserts the new batch inside a `prisma.$transaction`. If any single insert fails, the entire batch rolls back — no partial or fragmented test data is ever persisted.
+
+**Request Payload Parameters (per test case object):**
+
+| Parameter | Type | Required | Constraints |
+|---|---|---|---|
+| `input` | String | Required | Evaluation input string, may include literal line breaks (e.g. `[2,7,11,15]\n9`) to simulate stdin. |
+| `expectedOutput` | String | Required | Expected output string for evaluation comparison. |
+| `isSample` | Boolean | Required | `true` for publicly visible example cases shown in the UI; `false` for hidden evaluation vectors used to blind-test submissions. |
+| `score` | Integer | Required | Test case weight. Must be a positive integer (`.int().min(1)`). |
+
+**Sample Input Payload:**
+
+```json
+{
+  "testCases": [
+    {
+      "input": "[2,7,11,15]\n9",
+      "expectedOutput": "[0,1]",
+      "isSample": true,
+      "score": 10
+    },
+    {
+      "input": "[3,2,4]\n6",
+      "expectedOutput": "[1,2]",
+      "isSample": false,
+      "score": 20
+    }
+  ]
+}
+```
+
+**Behavior Notes:**
+
+- `orderNo` is calculated automatically and is not supplied by the client — it is derived from each item's position in the array (`orderNo: index + 1`), guaranteeing deterministic execution order.
+- Re-running this endpoint for the same problem fully overwrites the previous test case set rather than appending to it.
+
+**Success Outflow (201 Created):**
+
+```json
+{
+  "success": true,
+  "message": "Test case batch ingested successfully.",
+  "data": {
+    "problemPublicId": "e2da157f-1d4e-4f18-a682-1c7c91d4e28a",
+    "count": 2
+  }
+}
+```
