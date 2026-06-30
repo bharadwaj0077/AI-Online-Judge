@@ -86,3 +86,27 @@ We engineered a production-grade Layered (N-Tier) Architecture to handle program
 ### Testing Discipline
 
 The automated Postman collection validates the subsystem across four testing disciplines: integration testing (full request pipeline, Postman → Express → Zod → Middleware → Service → Prisma → PostgreSQL), security and authorization matrix testing (anonymous request rejection, privilege escalation blocking), input validation boundary testing (empty payloads, out-of-range resource limits), and state/isolation regression testing (soft-deleted items correctly returning 404 on subsequent lookups). All 11 test scenarios in the Problems suite currently pass at a 100% standard.
+
+## 🏛️ Architectural Anatomy: Test Case Subsystem (Nested Sub-Resources)
+
+When building enterprise-grade REST APIs, handling data that completely depends on another entity requires a structural pattern called Nested Sub-Resources. Instead of creating a flat endpoint like `/api/v1/create-test-case`, test case routes are mounted directly onto the problem they belong to: /api/v1/problems/:problemPublicId/test-cases/batch
+
+This design choice matters for two reasons:
+
+- **Relational Safety:** It explicitly states that a test case cannot exist in a vacuum; it must belong to a specific parent challenge.
+- **Router Encapsulation:** By using `Router({ mergeParams: true })` inside `testcase.routes.ts`, Express cleanly forwards the parent `:problemPublicId` variable down to the child controller, allowing separate route files to cleanly share URL keys.
+
+### The 4 Layers Built
+
+- **The Business Core** (`testcase.service.ts`): Handles ID translation (resolving the client-facing `publicId` UUID to the internal sequential `id` for fast relational operations), an overwrite-and-reset strategy (safely wiping previous test case rows via `deleteMany` before remapping new ones to avoid fragmented sequences), and atomic database transactions (`prisma.$transaction`) to guarantee all-or-nothing batch inserts.
+- **The Interface Controller** (`testcase.controller.ts`): Enforces array structural validation via a `batchTestCaseSchema` that parses a nested array matrix (`z.array(singleTestCaseSchema)`), with safe threshold enforcement on data strings, sample flags, and integer score weights (`.int().min(1)`).
+- **Dynamic Router Mounting** (`testcase.routes.ts` & `problem.routes.ts`): Test case routes are cleanly injected into the bottom of `problem.routes.ts` via `router.use("/:problemPublicId/test-cases", testCaseRoutes)`, keeping the routing tree legible as the project expands.
+- **The Persistence Layer**: Stores evaluation data with explicit input format delimiters, public/hidden visibility flags, and automatically calculated execution order.
+
+### Core Test Case API
+
+A bulk-ingestion endpoint is exposed under `/api/v1/problems/:problemPublicId/test-cases/batch`, allowing admins to upload an entire test suite for a problem in a single atomic transaction. Full endpoint details are documented in [`api.md`](./api.md).
+
+### Data Integrity Verified
+
+Bulk-loaded payloads are correctly structured into inline system delimiters (input strings with explicit line breaks for simulating terminal stdin), dynamic flag assertions (separating public `isSample: true` examples from hidden `isSample: false` evaluation vectors used to blind-test against cheating), and automatic sequence order arrays (`orderNo` calculated from array index) to guarantee deterministic test execution order in future sandboxed runners.
