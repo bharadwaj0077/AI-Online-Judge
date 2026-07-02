@@ -110,3 +110,24 @@ A bulk-ingestion endpoint is exposed under `/api/v1/problems/:problemPublicId/te
 ### Data Integrity Verified
 
 Bulk-loaded payloads are correctly structured into inline system delimiters (input strings with explicit line breaks for simulating terminal stdin), dynamic flag assertions (separating public `isSample: true` examples from hidden `isSample: false` evaluation vectors used to blind-test against cheating), and automatic sequence order arrays (`orderNo` calculated from array index) to guarantee deterministic test execution order in future sandboxed runners.
+
+## 🔒 Architectural Anatomy: Secure Code Execution Subsystem (Sandbox Engine)
+
+The most significant technical threshold in building an Online Judge is shifting from a standard web application that moves data to and from a database into an isolated remote code execution engine. Executing user-submitted code directly on the host OS exposes three critical attack vectors: filesystem destruction via system calls, CPU resource hijacking through infinite loops, and data leakage via outbound network connections. To eliminate all three, we built a secure micro-sandbox execution workflow using Docker.
+
+### The 5 Layers Built
+
+- **Global Execution Config** (`compiler.config.ts`): Centralizes all sandbox hardware limitation constants — each execution is hard-capped at 256MB RAM, 0.5 CPU core slices, and fully isolated with `--network none` to prevent any inbound or outbound network access from untrusted code.
+- **The OS-Level Sandbox Broker** (`sandbox.service.ts`): Creates a unique temporary `executionId` directory per submission to prevent race condition overwrites when simultaneous submissions arrive, wraps every Docker execution inside a `Promise.race()` to enforce time limits and fire a `TIME_LIMIT_EXCEEDED` verdict on breach, and always drops into a `finally` block to garbage-collect the temporary execution folder regardless of outcome.
+- **The Output Normalizer** (`compare.ts`): Houses the `OutputMatcher` utility which strips trailing whitespace, carriage returns (`\r\n` vs `\n`), and empty lines before running semantic equality comparisons, fixing a critical multi-platform line-ending mismatch bug between Windows-compiled outputs and Linux Docker container outputs.
+- **The Evaluation Orchestrator** (`judge.service.ts`): Bridges database records with the low-level sandbox. Pulls a problem's test cases from PostgreSQL, loops through them sequentially, invokes `SandboxService` per case, scores outputs via `OutputMatcher`, tracks peak execution times, and short-circuits evaluation immediately on the first failure to avoid wasting CPU resources on remaining test cases.
+- **The HTTP Judge Entry Point** (`judge.routes.ts` & `app.ts`): Exposes an isolated testing channel at `POST /api/v1/judge/evaluate/:problemPublicId` to verify Docker configurations, text normalization, and timeout racing before tying the engine to permanent user submission history.
+
+### Verdict System
+
+| Verdict | Trigger Condition | Responsible Component |
+|---|---|---|
+| `ACCEPTED` | Code runs within time limit, exits cleanly, output matches expected | `OutputMatcher` & `JudgeService` |
+| `WRONG_ANSWER` | Code runs and exits cleanly, but output does not match expected | `OutputMatcher` |
+| `TIME_LIMIT_EXCEEDED` | Execution exceeds the problem's allotted time limit | `SandboxService` (`Promise.race`) |
+| `RUNTIME_ERROR` | Code contains syntax errors, throws unhandled exceptions, or exits with a non-zero code | `SandboxService` (stderr interceptor) |
