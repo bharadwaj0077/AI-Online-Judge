@@ -100,6 +100,9 @@ export class JudgeService {
       if (currentVerdict !== "ACCEPTED" && report.overallVerdict === "ACCEPTED") {
         report.overallVerdict = currentVerdict as any;
       }
+      if (currentVerdict !== "ACCEPTED") {
+        break; 
+      }
     }
 
     return report;
