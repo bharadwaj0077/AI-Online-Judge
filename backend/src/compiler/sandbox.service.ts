@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { exec, execSync } from "child_process";
 import fs from "fs/promises";
 import path from "path";
 import { promisify } from "util";
@@ -74,7 +74,8 @@ export class SandboxService {
     const dockerShellCommand = [
       `docker run`,
       `--rm`,                                                  // Instantly delete container artifacts on thread termination
-      `-i`,                                                    // Keep input streams open to feed validation text
+      `-i`,    
+      `--name ${executionId}`,                                // Keep input streams open to feed validation text
       `--memory="${SANDBOX_LIMITS.MEMORY}"`,                  // Enforce strict RAM ceilings
       `--cpus="${SANDBOX_LIMITS.CPUS}"`,                      // Enforce precise CPU consumption constraints
       `--network=${SANDBOX_LIMITS.NETWORK}`,                   // Hard isolation from the open internet
@@ -93,6 +94,14 @@ export class SandboxService {
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutTimer = setTimeout(() => {
         containerForceKilled = true;
+
+        try {
+          // 💥 FORCE an immediate, blocking OS-level termination
+          execSync(`docker kill ${executionId}`, { stdio: "ignore" });
+        } catch (killErr) {
+          console.warn(`⚠️ Sandbox cleanup note: Container ${executionId} may have already closed.`);
+        }
+        
         reject(new Error("TLE"));
       }, timeLimitMs);
     });
