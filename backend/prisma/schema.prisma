@@ -181,7 +181,7 @@ model Submission {
   @@index([verdict])
   @@index([languageId])
   @@index([submittedAt])
-  @@map("submi  ssions")
+  @@map("submissions")
 }
 
 model Tag {
