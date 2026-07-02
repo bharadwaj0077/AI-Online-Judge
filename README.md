@@ -131,3 +131,19 @@ The most significant technical threshold in building an Online Judge is shifting
 | `WRONG_ANSWER` | Code runs and exits cleanly, but output does not match expected | `OutputMatcher` |
 | `TIME_LIMIT_EXCEEDED` | Execution exceeds the problem's allotted time limit | `SandboxService` (`Promise.race`) |
 | `RUNTIME_ERROR` | Code contains syntax errors, throws unhandled exceptions, or exits with a non-zero code | `SandboxService` (stderr interceptor) |
+
+## 🧩 Milestone 4 & 5: Sandboxed Execution Guardrails & Persistent Submissions
+
+Successfully engineered the core secure compilation engine, optimized execution pipelines against multi-case resource drains, and wired an atomic database logging matrix to track persistent user submissions.
+
+### 🐋 Advanced Sandbox Guardrails & Ghost Container Mitigation
+* **Synchronous Process Termination (`execSync`):** Upgraded the time-limit execution handler from asynchronous callbacks to a blocking, synchronous OS-level signal loop. This ensures that the exact millisecond a submission hits its `timeLimitMs` window, a hard `docker kill <executionId>` command runs, instantly freeing up host system memory and releasing directory file locks.
+* **Isolate Concurrent Spaces:** Enforced a dynamic multi-tenant file separation schema using unique runtime `executionId` names. This guarantees that multiple parallel code evaluations happen in complete isolation without overwriting local source binaries.
+
+### 🚀 High-Performance Grading Loop Optimization
+* **Test Case Short-Circuiting:** Re-engineered the sequential verification loop inside the grading manager to halt execution immediately upon encountering *any* failed case (`WRONG_ANSWER`, `RUNTIME_ERROR`, or `TIME_LIMIT_EXCEEDED`). This stops the engine from launching unnecessary subsequent Docker sandboxes, significantly reducing system CPU overhead.
+* **String Output Normalization:** Introduced a robust edge-case text cleaner that handles platform variations (converting Windows `\r\n` to Linux `\n`) and strips extraneous whitespace, ensuring submissions are graded strictly on logical accuracy.
+
+### 📊 Stateful Submissions & Atomic Aggregation Counters
+* **Dual-State Transaction Pipeline:** Implemented an optimized non-blocking database write sequence. Submissions are instantly saved to PostgreSQL under a `PENDING` tracking state to ensure fast client feedback before being updated with the final verdict, duration metrics, and score arrays.
+* **Anti-Exploit Aggregations:** Constructed transactional Prisma operations that increment global submission tallies for both users and problems. If a submission receives an `ACCEPTED` verdict, the engine checks for prior successful runs to adjust the user's `problemsSolved` metric accurately without double-counting vulnerabilities.
