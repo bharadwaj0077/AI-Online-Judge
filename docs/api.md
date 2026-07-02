@@ -347,3 +347,66 @@ Test case routes are nested sub-resources, mounted under their parent problem vi
   }
 }
 ```
+
+
+---
+
+## 8. Judge Engine API Endpoint Catalog
+
+The judge engine exposes an isolated evaluation channel for submitting raw code against a problem's test suite. All endpoints are under the path prefix `/api/v1/judge`.
+
+### 1. Evaluate Code Submission
+
+- **HTTP Method:** `POST`
+- **Target Path:** `/judge/evaluate/:problemPublicId`
+- **Access Control:** Logged-in users
+- **Description:** Accepts a raw code string and a language identifier, spins up an isolated Docker sandbox, executes the code against all test cases for the target problem, and returns a comprehensive verdict report. Each test case is evaluated sequentially. On the first failure, evaluation short-circuits to avoid unnecessary CPU usage on remaining cases.
+
+**Sandbox Hardware Limits Enforced Per Execution:**
+
+| Resource | Hard Limit |
+|---|---|
+| RAM | 256MB |
+| CPU | 0.5 cores |
+| Network | Disabled (`--network none`) |
+| Time | Per-problem `timeLimit` (ms) |
+
+**Request Payload Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `code` | String | Required | Raw source code string submitted by the user. |
+| `language` | String | Required | Language identifier (e.g. `python`, `cpp`, `java`). |
+
+**Sample Input Payload:**
+
+```json
+{
+  "code": "def twoSum(nums, target):\n    seen = {}\n    for i, n in enumerate(nums):\n        if target - n in seen:\n            return [seen[target - n], i]\n        seen[n] = i",
+  "language": "python"
+}
+```
+
+**Success Outflow (200 OK):**
+
+```json
+{
+  "success": true,
+  "message": "Evaluation complete.",
+  "data": {
+    "verdict": "ACCEPTED",
+    "passed": 5,
+    "total": 5,
+    "peakExecutionTime": 134
+  }
+}
+```
+
+**Possible Verdict Values:**
+
+| Verdict | Meaning |
+|---|---|
+| `ACCEPTED` | All test cases passed within the time limit. |
+| `WRONG_ANSWER` | Code ran successfully but output did not match expected output. |
+| `TIME_LIMIT_EXCEEDED` | Execution exceeded the problem's allotted time limit. |
+| `RUNTIME_ERROR` | Code crashed with a non-zero exit code or unhandled exception. |
