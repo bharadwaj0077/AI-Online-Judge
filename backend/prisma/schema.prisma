@@ -170,7 +170,8 @@ model Submission {
   executionTimeMs Int?     @map("execution_time_ms")
   memoryUsedKb    Int?     @map("memory_used_kb")
   submittedAt     DateTime @default(now()) @db.Timestamptz @map("submitted_at")
-
+  aiFeedback      AiFeedback?
+  
   // Relationships
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   problem  Problem  @relation(fields: [problemId], references: [id], onDelete: Restrict)
@@ -206,4 +207,18 @@ model ProblemTag {
   @@id([problemId, tagId])
   @@index([tagId])
   @@map("problem_tags")
+}
+
+model AiFeedback {
+  id              BigInt     @id @default(autoincrement())
+  publicId        String     @unique @default(uuid()) @map("public_id")
+  submissionId    BigInt     @unique @map("submission_id")
+  submission      Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  analysis        String     @db.Text // Holds the complete markdown critique
+  hints           String     @db.Text // Targeted algorithmic steps forward
+  timeComplexity  String     @map("time_complexity") // e.g., "O(N^2) -> Can be optimized to O(N log N)"
+  spaceComplexity String     @map("space_complexity") // e.g., "O(N)"
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  @@map("ai_feedbacks")
 }
