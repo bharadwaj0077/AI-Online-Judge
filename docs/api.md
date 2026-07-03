@@ -410,3 +410,62 @@ The judge engine exposes an isolated evaluation channel for submitting raw code 
 | `WRONG_ANSWER` | Code ran successfully but output did not match expected output. |
 | `TIME_LIMIT_EXCEEDED` | Execution exceeded the problem's allotted time limit. |
 | `RUNTIME_ERROR` | Code crashed with a non-zero exit code or unhandled exception. |
+
+---
+
+## 10. AI Code Review API Endpoint Catalog
+
+All endpoints are exposed under the unified path prefix `/api/v1/ai`.
+
+### 1. Request AI Code Review
+
+- **HTTP Method:** `POST`
+- **Target Path:** `/ai/review/:submissionPublicId`
+- **Access Control:** Authenticated session (`requireAuth`)
+- **Description:** Triggers an on-demand AI review for a specific submission. The controller first checks if a cached review already exists in the `ai_feedbacks` table — if so, it returns the cached result instantly without calling the upstream API. If no cache exists, it sends the source code and problem statement to Google Gemini, normalizes the response, persists the result, and returns the full analysis. Request body is empty; the target is resolved entirely from the URL parameter.
+
+**Request Body:** None (empty)
+
+**Success Outflow (201 Created — new review generated):**
+
+```json
+{
+  "success": true,
+  "message": "AI code critique compiled successfully.",
+  "data": {
+    "id": "1",
+    "publicId": "e3b8a920-412e-4cb3-911a-05187fc3c88f",
+    "submissionId": "1",
+    "analysis": "The solution correctly implements the optimal Two Sum approach using a hash map for O(1) average lookup times, completing verification in a single pass.",
+    "hints": "1. Review alternative competitive programming standard input parsing structures.\n2. Consider how nested loops change the resource footprint relative to this model.\n3. Think about how the dictionary behaves if passed a completely empty input array.",
+    "timeComplexity": "O(N)",
+    "spaceComplexity": "O(N)",
+    "createdAt": "2026-07-03T21:24:12.114Z"
+  }
+}
+```
+
+**Success Outflow (200 OK — cached review returned):**
+
+```json
+{
+  "success": true,
+  "message": "AI review fetched from cache.",
+  "data": {
+    "publicId": "e3b8a920-412e-4cb3-911a-05187fc3c88f",
+    "analysis": "...",
+    "hints": "...",
+    "timeComplexity": "O(N)",
+    "spaceComplexity": "O(N)"
+  }
+}
+```
+
+---
+
+### 2. Fetch Stored AI Review
+
+- **HTTP Method:** `GET`
+- **Target Path:** `/ai/review/:submissionPublicId`
+- **Access Control:** Authenticated session (`requireAuth`)
+- **Description:** Fetches the previously stored AI feedback record for a specific submission from the `ai_feedbacks` table. Returns `404` if no review has been generated yet for that submission.
