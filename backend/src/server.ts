@@ -2,7 +2,8 @@
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
 };
-
+import dotenv from "dotenv";
+dotenv.config();
 import app from "./app";
 import { env } from "./config/env";
 import { prisma } from "./config/db";
