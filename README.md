@@ -147,3 +147,46 @@ Successfully engineered the core secure compilation engine, optimized execution 
 ### 📊 Stateful Submissions & Atomic Aggregation Counters
 * **Dual-State Transaction Pipeline:** Implemented an optimized non-blocking database write sequence. Submissions are instantly saved to PostgreSQL under a `PENDING` tracking state to ensure fast client feedback before being updated with the final verdict, duration metrics, and score arrays.
 * **Anti-Exploit Aggregations:** Constructed transactional Prisma operations that increment global submission tallies for both users and problems. If a submission receives an `ACCEPTED` verdict, the engine checks for prior successful runs to adjust the user's `problemsSolved` metric accurately without double-counting vulnerabilities.
+
+## 🤖 Architectural Anatomy: AI-Powered Code Analysis Engine (Phase 6)
+
+The platform's crown jewel feature transforms the Online Judge from a grading tool into an automated computer science mentor. Users can request an on-demand AI review of any previous submission, receiving algorithmic optimization analysis, edge-case feedback, complexity metrics, and progressive hints — without spoiling direct answers.
+
+### Core Features
+
+- **On-Demand AI Mode:** AI review runs as an isolated, post-grading API invocation, keeping the core Docker sandboxing loop under 1 second. Users explicitly trigger reviews on previous submissions, ensuring contest integrity and strict API token budget control.
+- **Intelligent Analysis:** Google's Gemini model evaluates the submitted source code against the parent problem statement, calculating runtime complexity, flagging structural edge-case oversights, and generating descriptive mentorship feedback.
+- **Anti-Double-Billing Cache:** If a submission has already been reviewed, the controller intercepts the request and instantly returns the cached result from PostgreSQL — no duplicate upstream API charges.
+
+### Engineering Obstacles Solved
+
+- **Dependency Constructor Mismatch:** Migrated from the deprecated `@google/generative-ai` package (which caused fatal `TypeError: not a constructor` crashes) to Google's modern unified production SDK `@google/genai`.
+- **ES Module Hoisting Bug:** JavaScript hoisted `import app` above `dotenv.config()`, causing the AI client to initialize before `.env` was read — passing `undefined` API keys and triggering 13-second connection timeouts. Fixed via **Lazy Initialization** inside `ai.service.ts`, building the `GoogleGenAI()` client only at the moment a user hits the endpoint.
+- **Upstream 503 Congestion:** Free-tier `gemini-2.5-flash` traffic spikes caused `UNAVAILABLE` exceptions. Fixed with a fast fallback lane routing to the stable `gemini-1.5-flash` engine.
+- **Prisma Type Mismatch:** Gemini returned hints as a JSON array but PostgreSQL expected a flat `String`. Fixed with an inline Data Normalization Gateway that maps arrays into numbered markdown strings before the Prisma write.
+
+### Database Evolution
+
+A dedicated `AiFeedback` table was introduced in `schema.prisma`, decoupled from the core `submissions` table to keep fast historical queries unaffected by large markdown text blocks. A `CASCADE` delete constraint ensures AI feedback rows are automatically wiped when their parent submission is deleted, preventing orphaned database records.
+
+### Core AI API
+
+2 REST endpoints are exposed under `/api/v1/ai`:
+
+- `POST /review/:submissionPublicId` — Triggers an AI review for a specific submission. Returns cached data if already analyzed.
+- `GET /review/:submissionPublicId` — Fetches the stored AI feedback for a previously analyzed submission.
+
+Full endpoint details are documented in [`api.md`](./docs/api.md).
+
+### Verified Output
+
+A clean `201 Created` response confirms the full pipeline is operational:
+
+```json
+{
+  "verdict": "ACCEPTED",
+  "timeComplexity": "O(N)",
+  "spaceComplexity": "O(N)",
+  "hints": "1. Review alternative input parsing structures.\n2. Consider nested loop resource footprint.\n3. Think about empty input edge cases."
+}
+```
