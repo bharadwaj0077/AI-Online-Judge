@@ -9,7 +9,7 @@ import authRoutes from "./routes/auth.routes";
 import problemRoutes from "./routes/problem.routes"; 
 import judgeRoutes from "./routes/judge.routes"; 
 import submissionRoutes from "./routes/submission.routes";
-
+import aiRoutes from "./routes/ai.routes";
 
 const app = express();
 
@@ -29,6 +29,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/problems", problemRoutes); 
 app.use("/api/v1/judge", judgeRoutes); 
 app.use("/api/v1/submissions", submissionRoutes);
+app.use("/api/v1/ai", aiRoutes);
 
 // Global API Version Base Entry Route
 app.get("/api/v1/health", (req, res) => {
