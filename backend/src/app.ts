@@ -39,6 +39,11 @@ app.get("/api/v1/health", (req, res) => {
 });
 
 // Global Fallback Error Middleware Handler
-app.use(errorHandler);
-
+// 🟩 UNIFIED CORS OBJECT: Explicitly trust your exact browser local domain
+app.use(
+  cors({ 
+    origin: "http://localhost:3000", 
+    credentials: true 
+  })
+);
 export default app;
