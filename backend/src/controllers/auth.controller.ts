@@ -38,23 +38,37 @@ export class AuthController {
   // Handle User Session Authentication (Dual Identifier Entry Enabled)
   static login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // 1. Parse and validate the incoming identity fields cleanly via Zod
       const validatedBody = loginSchema.parse(req.body);
 
-      // 2. Pass credentials down to the service layer.
-      // We map the generic 'identifier' to the 'username' key so your existing
-      // AuthService logic receives the identifier string without breaking method signatures.
+      // ⚡ CANONICAL LOOKUP STEP: 
+      // Scan both columns to pull the actual record matching the email or username input string
+      const matchedUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: validatedBody.identifier.toLowerCase().trim() },
+            { username: validatedBody.identifier.trim() }
+          ]
+        }
+      });
+
+      // If no account exists with that email or username address string
+      if (!matchedUser) {
+        res.status(401).json({ success: false, message: "Invalid email/username or password provided." });
+        return;
+      }
+
+      // Pass the actual database username property string down to the existing AuthService pipeline
       const { user, token } = await AuthService.loginUser({
-        username: validatedBody.identifier,
+        username: matchedUser.username, 
         password: validatedBody.password
       });
 
-      // 3. Append authorization keys directly within HttpOnly cookies to block XSS vector access
+      // Append authorization keys directly within HttpOnly cookies
       res.cookie("token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // Explicit 7-day expiration lifespan window
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
       res.status(200).json({
@@ -66,7 +80,6 @@ export class AuthController {
       next(error);
     }
   };
-
   // Handle User Session Exits
   static logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     res.clearCookie("token");
