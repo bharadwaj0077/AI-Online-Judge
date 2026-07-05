@@ -190,3 +190,25 @@ A clean `201 Created` response confirms the full pipeline is operational:
   "hints": "1. Review alternative input parsing structures.\n2. Consider nested loop resource footprint.\n3. Think about empty input edge cases."
 }
 ```
+
+## 🎨 Architectural Anatomy: Full-Stack Frontend Ecosystem (Phase 7)
+
+The platform has successfully transitioned from a pure backend utility into a highly interactive, full-stack ecosystem built on Next.js 16 (App Router). The frontend delivers a LeetCode-grade interactive experience with server-side rendering, cross-origin secure cookie handling, and an embedded Monaco IDE workspace.
+
+### Core Structural Additions
+
+- **Axios HTTP Interface** (`src/lib/api.ts`): A unified network connection instance built with `withCredentials: true`, forcing the browser to securely pass `HttpOnly` authorization cookies across all cross-origin requests. The interceptor is refactored to silently pass `401` and `404` background status errors down the promise chain without crashing the UI.
+- **Global Auth Context** (`src/context/AuthContext.tsx`): A state distribution hub that checks login status on page load, mounts profile data down the layout tree, handles structural page protection, and manages clean logouts.
+
+### Interactive Dashboard Ecosystem
+
+- **Community Hub** (`src/app/page.tsx`): A three-column developer dashboard with real-time contest countdown tickers, community technical update streams, and quick-access learning track widgets.
+- **Problem Directory** (`src/app/problems/page.tsx`): A responsive data grid reading problems from PostgreSQL with custom color-coded difficulty indicators — Emerald for Easy, Amber for Medium, Rose for Hard.
+- **Split-Screen IDE Workspace** (`src/app/problems/[slug]/page.tsx`): A professional split-screen IDE embedding the VS Code Monaco Editor with language selection, test-case console I/O, real-time submission triggers, and an on-demand AI review drawer displaying Gemini feedback with live time/space complexity meters.
+
+### Engineering Obstacles Solved
+
+- **Next.js Background 404 Crash Overlay:** The missing `getMe` endpoint caused Axios to throw a `404`, which Next.js interpreted as a fatal layout panic and locked the screen with a red dev overlay. Fixed by building the `getMe` endpoint in `auth.controller.ts` and refactoring the Axios interceptor to silently handle background auth checks.
+- **Dual-Identifier Login (Email or Username):** Initial backend rewrites caused duplicate variable declarations crashing the compiler, and a `400 Bad Request` mismatch because the Zod schema expected `identifier` while the client sent `username`. Fixed by rewriting `auth.controller.ts` from scratch with a unified `identifier` key mapped cleanly to the `AuthService`.
+- **Cookie Domain Mismatch Loop:** Users logged in successfully but were immediately bounced back to the login screen due to the browser dropping cookies over `127.0.0.1` vs `localhost` domain mismatches. Fixed by aligning `NEXT_PUBLIC_API_URL` to `localhost:5000` and updating the backend CORS policy in `app.ts` to explicitly trust `http://localhost:3000`.
+- **React BigInt Key Warning:** PostgreSQL `BigInt` IDs lose formatting predictability in React's virtual DOM mapping. Fixed with a bulletproof fallback key: `problem.id?.toString() || problem.publicId`.
