@@ -469,3 +469,55 @@ All endpoints are exposed under the unified path prefix `/api/v1/ai`.
 - **Target Path:** `/ai/review/:submissionPublicId`
 - **Access Control:** Authenticated session (`requireAuth`)
 - **Description:** Fetches the previously stored AI feedback record for a specific submission from the `ai_feedbacks` table. Returns `404` if no review has been generated yet for that submission.
+
+---
+
+## 11. Auth Controller Update — Dual-Identifier Login & Profile Endpoint
+
+### Updates to Existing Auth Routes
+
+#### Login (Updated)
+
+- **HTTP Method:** `POST`
+- **Target Path:** `/auth/login`
+- **Change:** The request body now accepts a unified `identifier` key instead of `username`, allowing users to log in with either their username or registered email address.
+
+**Updated Request Payload:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `identifier` | String | Required | Either the account username or registered email address. |
+| `password` | String | Required | Plaintext password string. |
+
+**Sample Input Payload:**
+
+```json
+{
+  "identifier": "developer_alpha",
+  "password": "secure_password_123"
+}
+```
+
+---
+
+#### Get Authenticated Profile (New)
+
+- **HTTP Method:** `GET`
+- **Target Path:** `/auth/me`
+- **Access Control:** Authenticated session (`requireAuth`)
+- **Description:** Validates the active session cookie and returns the authenticated user's public profile data. Used by the frontend `AuthContext` on every page load to check login state.
+
+**Success Outflow (200 OK):**
+
+```json
+{
+  "success": true,
+  "message": "Authenticated profile fetched successfully.",
+  "data": {
+    "publicId": "e2da157f-1d4e-4f18-a682-1c7c91d4e28a",
+    "username": "developer_alpha",
+    "email": "alpha@codeforge.org",
+    "role": "USER"
+  }
+}
+```
