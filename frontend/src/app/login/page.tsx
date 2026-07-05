@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { LogIn, UserCheck, Lock, ArrowRight, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
-  const [identifier, setIdentifier] = useState(""); // Holds email string or username string smoothly
+  const [identifier, setIdentifier] = useState(""); 
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -21,14 +21,23 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      // 🚀 Pass the unified identifier key over the network connection pipeline
       const response = await api.post("/auth/login", { identifier, password });
       if (response.data?.success) {
         await checkAuthStatus(); 
         router.push("/"); 
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || "Invalid account credentials provided.");
+      // 🚀 EXTRACT PRECISE ERROR METRICS
+      const backendData = err.response?.data;
+      
+      if (backendData?.errors && typeof backendData.errors === "object") {
+        const parsedIssues = Object.entries(backendData.errors)
+          .map(([field, details]: any) => `${field}: ${details._errors?.join(", ") || details}`)
+          .join(" | ");
+        setError(parsedIssues || backendData.message);
+      } else {
+        setError(backendData?.message || err.message || "Network connection refused by upstream backend.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -36,7 +45,6 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 overflow-hidden">
-      {/* Background Ambient Glow Field */}
       <div className="absolute top-1/2 left-1/2 -z-10 h-[400px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-600/10 blur-[120px]" />
       
       <div className="w-full max-w-md rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-8 backdrop-blur-xl shadow-2xl shadow-black/40">
@@ -49,14 +57,13 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/5 p-3.5 text-xs font-medium text-red-400">
-            {error}
+          <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/5 p-3.5 text-xs font-semibold text-red-400 leading-relaxed whitespace-pre-line">
+            ⚠️ {error}
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            {/* 🟩 LABELS DIVERSIFIED: Explains flexible input options to the client */}
             <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">
               Email or Username
             </label>
