@@ -70,7 +70,8 @@ export default function ProblemWorkspacePage({ params }: PageProps) {
       });
       setSandboxOutput(response.data?.output || "Execution completed with blank logs.");
     } catch (err: any) {
-      setSandboxOutput(err.response?.data?.message || "An exception occurred inside the pipeline container loop.");
+      // 🟩 Fix: Print precise error strings instead of a static generic message
+      setSandboxOutput(err.response?.data?.message || err.message || "An exception occurred inside the pipeline container loop.");
     } finally {
       setRunningCode(false);
     }
@@ -93,7 +94,8 @@ export default function ProblemWorkspacePage({ params }: PageProps) {
       setVerdict(payload.verdict);
       setSubmissionPublicId(payload.publicId);
     } catch (err: any) {
-      setVerdict("COMPILATION_ERROR");
+      // 🟩 Fix: Expose the actual server exception string cleanly
+      setVerdict(err.response?.data?.message || "SERVER_DATABASE_ERROR");
     } finally {
       setEvaluating(false);
     }
