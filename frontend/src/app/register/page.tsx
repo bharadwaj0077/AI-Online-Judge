@@ -22,10 +22,22 @@ export default function RegisterPage() {
     try {
       const response = await api.post("/auth/register", { username, email, password });
       if (response.data?.success) {
-        router.push("/login"); // Send them straight to login to capture cookies cleanly
+        router.push("/login");
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || "Account compilation failed. Try alternative naming strings.");
+      // 🚀 EXTRACT PRECISE ERROR METRICS:
+      // Dynamically unpack Zod validation objects, raw network messages, or server state blocks
+      const backendData = err.response?.data;
+      
+      if (backendData?.errors && typeof backendData.errors === "object") {
+        // If Zod validation failed, combine specific error properties together cleanly
+        const parsedIssues = Object.entries(backendData.errors)
+          .map(([field, details]: any) => `${field}: ${details._errors?.join(", ") || details}`)
+          .join(" | ");
+        setError(parsedIssues || backendData.message);
+      } else {
+        setError(backendData?.message || err.message || "Network connection refused by upstream backend.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -45,8 +57,8 @@ export default function RegisterPage() {
         </div>
 
         {error && (
-          <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/5 p-3.5 text-xs font-medium text-red-400">
-            {error}
+          <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/5 p-3.5 text-xs font-semibold text-red-400 leading-relaxed whitespace-pre-line">
+            ⚠️ {error}
           </div>
         )}
 
