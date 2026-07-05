@@ -212,3 +212,24 @@ The platform has successfully transitioned from a pure backend utility into a hi
 - **Dual-Identifier Login (Email or Username):** Initial backend rewrites caused duplicate variable declarations crashing the compiler, and a `400 Bad Request` mismatch because the Zod schema expected `identifier` while the client sent `username`. Fixed by rewriting `auth.controller.ts` from scratch with a unified `identifier` key mapped cleanly to the `AuthService`.
 - **Cookie Domain Mismatch Loop:** Users logged in successfully but were immediately bounced back to the login screen due to the browser dropping cookies over `127.0.0.1` vs `localhost` domain mismatches. Fixed by aligning `NEXT_PUBLIC_API_URL` to `localhost:5000` and updating the backend CORS policy in `app.ts` to explicitly trust `http://localhost:3000`.
 - **React BigInt Key Warning:** PostgreSQL `BigInt` IDs lose formatting predictability in React's virtual DOM mapping. Fixed with a bulletproof fallback key: `problem.id?.toString() || problem.publicId`.
+
+## 🚀 Recent Changelog & System Architecture Milestone
+
+The platform has successfully evolved from a static problem directory layout into a highly collaborative, **Real-Time Full-Stack Competitive Programming Platform**. Below is an overview of the microservices, systems, and engineering bugs resolved during this sprint.
+
+### ⚡ 1. Live Timed Contest Subsystem & WebSockets
+* **Relational Database Topology Expansion:** Expanded our Prisma PostgreSQL tracking boundaries with `Contest` and `ContestProblem` structural models to manage live schedules, weighted points, and solution constraints safely.
+* **Socket.io State Orchestrator (`backend/src/config/socket.ts`):** Implemented a real-time event pipeline layer using WebSockets. Users are separated into isolated virtual "rooms" when entering a contest challenge page.
+* **Instant Scoreboard Recalculation Core:** Refactored the core validation engine to process aggregates whenever a user hits an `ACCEPTED` status. It recalculates the scoreboard ($10\text{ pts}$ for Easy, $30\text{ pts}$ for Medium, $50\text{ pts}$ for Hard) and broadcasts updated standings to all connected browsers instantly.
+
+### 💻 2. Local Compiler Execution Sandboxes
+* **Scratchpad File Lifecycle Automation:** Engineered isolated execution pipelines inside `backend/src/app.ts`. Code from the Monaco Editor is written to a unique disk path, compiled using system binaries, and cleaned up automatically upon teardown.
+* **Multi-Language Runtime Track Management:**
+  * **Python 3 Track:** Utilizes process stream callbacks to capture standard outputs (`stdout`) and execution error parameters (`stderr`) safely.
+  * **C++ 17 (GCC) Track:** Pipes raw code files directly through local `g++` compilation processes, checks for syntax anomalies, executes the resulting binaries, and maps custom standard input (`stdin`) arguments smoothly.
+
+### 🛡️ 3. Full-Stack Stability Patches & UX Refinements
+* **Self-Healing Database Seeders:** Patched the server initialization lifecycle to automatically detect and auto-seed the `languages` reference lookup index rows upon boot, preventing foreign key constraint crashes after a database reset.
+* **Granular Network Exception Capturing:** Upgraded frontend authentication forms (`/login` and `/register`) to unpack Zod validation array elements and network errors dynamically, displaying exact issue strings instead of generic messages.
+* **Unified Domain CORS Handshake:** Restructured the application middleware hierarchy to process cross-origin resource isolation rules correctly. Unified local cookies and configurations to explicitly use `localhost` across the full stack.
+* **Unmasked Workspace Terminals:** Refactored frontend workspace catch blocks to stop hiding backend exceptions behind generic text boxes, passing raw compiler issues directly down to the terminal view.
