@@ -30,7 +30,7 @@ export default function DashboardPage() {
         }
       } catch (error) {
         console.error("Failed to load account metrics:", error);
-      } bits {
+      } finally {
         setLoading(false);
       }
     };
