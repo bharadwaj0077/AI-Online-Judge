@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
+import { prisma } from "../config/db"; // 🟩 IMPORT FIXED: Securely attaches the Prisma instance to this file scope
 import { AuthService } from "../services/auth.service";
 import { AuthenticatedRequest } from "../middlewares/auth.middleware";
 
@@ -11,7 +12,6 @@ export const registerSchema = z.object({
   fullName: z.string().max(100).optional(),
 });
 
-// 🟩 FLEXIBLE IDENTIFIER SCHEMA: Accept email or username strings seamlessly
 export const loginSchema = z.object({
   identifier: z.string().min(1, "Email or Username is required"),
   password: z.string().min(1, "Password is required"),
@@ -40,8 +40,7 @@ export class AuthController {
     try {
       const validatedBody = loginSchema.parse(req.body);
 
-      // ⚡ CANONICAL LOOKUP STEP: 
-      // Scan both columns to pull the actual record matching the email or username input string
+      // ⚡ Scan columns to pull the actual record matching the email or username input string
       const matchedUser = await prisma.user.findFirst({
         where: {
           OR: [
@@ -51,15 +50,15 @@ export class AuthController {
         }
       });
 
-      // If no account exists with that email or username address string
+      // If no account exists with that email or username
       if (!matchedUser) {
         res.status(401).json({ success: false, message: "Invalid email/username or password provided." });
         return;
       }
 
-      // Pass the actual database username property string down to the existing AuthService pipeline
+      // Pass the verified username string down to your existing AuthService pipeline
       const { user, token } = await AuthService.loginUser({
-        username: matchedUser.username, 
+        username: matchedUser.username,
         password: validatedBody.password
       });
 
@@ -68,7 +67,7 @@ export class AuthController {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
+        maxAge: 7 * 24 * 60 * 60 * 1000, 
       });
 
       res.status(200).json({
@@ -80,16 +79,14 @@ export class AuthController {
       next(error);
     }
   };
+
   // Handle User Session Exits
   static logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     res.clearCookie("token");
     res.status(200).json({ success: true, message: "Session token terminated successfully." });
   };
 
-  /**
-   * GET /api/v1/auth/me
-   * Resolves the currently authenticated session user profile state values
-   */
+  // Resolves the currently authenticated session user profile state values
   static getMe = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
@@ -97,7 +94,6 @@ export class AuthController {
         return;
       }
 
-      // Safe access using values verified inside your existing authentication middleware layer
       res.status(200).json({
         success: true,
         data: {
