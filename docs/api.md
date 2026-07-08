@@ -521,3 +521,26 @@ All endpoints are exposed under the unified path prefix `/api/v1/ai`.
   }
 }
 ```
+
+## ⚖️ Judge API
+
+### Evaluate Submissions
+`POST /api/v1/judge/run`
+
+Executes the provided code snippet against the test case parameters.
+
+**Request Body:**
+- `sourceCode`: (string) The user's solution code.
+- `language`: (string) Runtime engine key (e.g., `python3`, `cpp17`).
+- `customInput`: (string) The raw input arguments (e.g., `"[2,7,11,15], 9"`).
+- `problemId`: (string) Unique relational ID.
+
+**Response:**
+```json
+{
+  "success": true,
+  "stdout": "string", // Captured console output
+  "output": "string", // The final function return result
+  "expected": "string", // Author reference solution output
+  "error": null
+}

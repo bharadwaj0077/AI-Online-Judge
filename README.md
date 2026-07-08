@@ -233,3 +233,19 @@ The platform has successfully evolved from a static problem directory layout int
 * **Granular Network Exception Capturing:** Upgraded frontend authentication forms (`/login` and `/register`) to unpack Zod validation array elements and network errors dynamically, displaying exact issue strings instead of generic messages.
 * **Unified Domain CORS Handshake:** Restructured the application middleware hierarchy to process cross-origin resource isolation rules correctly. Unified local cookies and configurations to explicitly use `localhost` across the full stack.
 * **Unmasked Workspace Terminals:** Refactored frontend workspace catch blocks to stop hiding backend exceptions behind generic text boxes, passing raw compiler issues directly down to the terminal view.
+
+
+## 🚀 Milestone 8: Multi-Case Parallel Execution & Dynamic Templating
+
+Refactored the core execution engine to support 100% dynamic challenge ingestion and batch parallel evaluation.
+
+### ⚡ Batch Parallel Evaluation Engine
+- **Concurrent Execution Loop:** Replaced single-case logic with a Promise-based batch processor that executes all test cases (both samples and custom appended cases) simultaneously within the sandbox Docker environment.
+- **Dynamic Token Injection:** Abandoned hardcoded problem slugs entirely. The system now injects user code and inputs into driver scripts dynamically using tokens like `{{USER_CODE}}` and `{{INPUT}}`, parsed from the database at runtime.
+- **Input Parsing Logic:** Implemented a robust "last bracket" index scanner (`lastIndexOf("]")`) to correctly parse complex array inputs (e.g., Two Sum) directly from the frontend text area without bleed-over.
+
+### 🎨 Immersive IDE Theme Engine
+- **Multi-Palette Skinning:** Integrated a Global Theme Registry (`synapse`, `midnight`, `cyberpunk`) that systematically updates the background container, sidebar, editor palette, and console tabs for a fully personalized developer experience.
+- **Resizable Workspace Panes:** Added custom `useRef`-based drag handles for horizontal and vertical pane resizing, removing the need for third-party UI dependencies.
+
+---
