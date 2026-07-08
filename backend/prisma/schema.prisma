@@ -48,21 +48,21 @@ enum Verdict {
 // ==========================================
 
 model User {
-  id               BigInt     @id @default(autoincrement()) @map("id")
-  publicId         String     @unique @default(uuid()) @db.Uuid @map("public_id")
-  username         String     @db.VarChar(30) @map("username")
-  email            String     @db.VarChar(255) @map("email")
-  passwordHash     String     @db.Text @map("password_hash")
-  fullName         String?    @db.VarChar(100) @map("full_name")
-  avatarKey        String?    @db.Text @map("avatar_key")
-  bio              String?    @db.Text @map("bio")
-  country          String?    @db.VarChar(100) @map("country")
-  role             UserRole   @default(USER) @map("role")
-  problemsSolved   Int        @default(0) @map("problems_solved")
-  submissionsCount Int        @default(0) @map("submissions_count")
-  createdAt        DateTime   @default(now()) @db.Timestamptz @map("created_at")
-  updatedAt        DateTime   @updatedAt @db.Timestamptz @map("updated_at")
-  deletedAt        DateTime?  @db.Timestamptz @map("deleted_at")
+  id               BigInt       @id @default(autoincrement()) @map("id")
+  publicId         String       @unique @default(uuid()) @db.Uuid @map("public_id")
+  username         String       @db.VarChar(30) @map("username")
+  email            String       @db.VarChar(255) @map("email")
+  passwordHash     String       @db.Text @map("password_hash")
+  fullName         String?      @db.VarChar(100) @map("full_name")
+  avatarKey        String?      @db.Text @map("avatar_key")
+  bio              String?      @db.Text @map("bio")
+  country          String?      @db.VarChar(100) @map("country")
+  role             UserRole     @default(USER) @map("role")
+  problemsSolved   Int          @default(0) @map("problems_solved")
+  submissionsCount Int          @default(0) @map("submissions_count")
+  createdAt        DateTime     @default(now()) @db.Timestamptz @map("created_at")
+  updatedAt        DateTime     @updatedAt @db.Timestamptz @map("updated_at")
+  deletedAt        DateTime?    @db.Timestamptz @map("deleted_at")
 
   // Relationships
   createdProblems Problem[]
@@ -95,13 +95,17 @@ model Problem {
   createdAt       DateTime          @default(now()) @db.Timestamptz @map("created_at")
   updatedAt       DateTime          @updatedAt @db.Timestamptz @map("updated_at")
   deletedAt       DateTime?         @db.Timestamptz @map("deleted_at")
-  contests ContestProblem[]
+  contests        ContestProblem[]
+
+  // LEETCODE ADAPTATION CORE FIELDS
+  inputTemplate   String            @default("") @db.Text @map("input_template")
+  driverScript    String            @default("") @db.Text @map("driver_script")
 
   // Relationships
-  author      User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  testCases   TestCase[]
-  submissions Submission[]
-  problemTags ProblemTag[]
+  author          User?             @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  testCases       TestCase[]
+  submissions     Submission[]
+  problemTags     ProblemTag[]
 
   @@unique([slug], map: "idx_problems_slug_active", where: { deletedAt: null })
   @@index([difficulty])
@@ -111,24 +115,24 @@ model Problem {
 }
 
 model Language {
-  id                   BigInt   @id @default(autoincrement()) @map("id")
-  publicId             String   @unique @default(uuid()) @db.Uuid @map("public_id")
-  name                 String   @db.VarChar(50) @map("name")
-  displayName          String   @db.VarChar(100) @map("display_name")
-  slug                 String   @unique @db.VarChar(50) @map("slug")
-  languageBase         String   @db.VarChar(50) @map("language_base")
-  version              String   @db.VarChar(30) @map("version")
-  fileExtension        String   @db.VarChar(10) @map("file_extension")
-  dockerImage          String   @db.Text @map("docker_image")
-  compileCommand       String?  @db.Text @map("compile_command")
-  runCommand           String   @db.Text @map("run_command")
-  isCompiled           Boolean  @map("is_compiled")
-  memoryLimitSupported Boolean  @default(true) @map("memory_limit_supported")
-  timeMultiplier       Float    @default(1.0) @map("time_multiplier")
-  executionOrder       Int      @map("execution_order")
-  isActive             Boolean  @default(true) @map("is_active")
-  createdAt            DateTime @default(now()) @db.Timestamptz @map("created_at")
-  updatedAt            DateTime @updatedAt @db.Timestamptz @map("updated_at")
+  id                   BigInt       @id @default(autoincrement()) @map("id")
+  publicId             String       @unique @default(uuid()) @db.Uuid @map("public_id")
+  name                 String       @db.VarChar(50) @map("name")
+  displayName          String       @db.VarChar(100) @map("display_name")
+  slug                 String       @unique @db.VarChar(50) @map("slug")
+  languageBase         String       @db.VarChar(50) @map("language_base")
+  version              String       @db.VarChar(30) @map("version")
+  fileExtension        String       @db.VarChar(10) @map("file_extension")
+  dockerImage          String       @db.Text @map("docker_image")
+  compileCommand       String?      @db.Text @map("compile_command")
+  runCommand           String       @db.Text @map("run_command")
+  isCompiled           Boolean      @map("is_compiled")
+  memoryLimitSupported Boolean      @default(true) @map("memory_limit_supported")
+  timeMultiplier       Float        @default(1.0) @map("time_multiplier")
+  executionOrder       Int          @map("execution_order")
+  isActive             Boolean      @default(true) @map("is_active")
+  createdAt            DateTime     @default(now()) @db.Timestamptz @map("created_at")
+  updatedAt            DateTime     @updatedAt @db.Timestamptz @map("updated_at")
 
   // Relationships
   submissions Submission[]
@@ -142,8 +146,11 @@ model TestCase {
   id               BigInt   @id @default(autoincrement()) @map("id")
   problemId        BigInt   @map("problem_id")
   orderNo          Int      @default(0) @map("order_no")
-  inputData        String?  @db.Text @map("input_data")
-  expectedOutput   String?  @db.Text @map("expected_output")
+  
+  // 🚀 FIXED KEY ALIGNMENT: Renamed from inputData to input and set as required
+  input            String   @db.Text @map("input_data")
+  expectedOutput   String   @db.Text @map("expected_output")
+  
   inputStorageKey  String?  @db.Text @map("input_storage_key")
   outputStorageKey String?  @db.Text @map("output_storage_key")
   isSample         Boolean  @default(false) @map("is_sample")
@@ -153,34 +160,32 @@ model TestCase {
   // Relationships
   problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
 
-  // Compound index for fast ordered test retrieval
   @@index([problemId, orderNo])
   @@index([isSample])
   @@map("test_cases")
 }
 
 model Submission {
-  id              BigInt   @id @default(autoincrement()) @map("id")
-  publicId        String   @unique @default(uuid()) @db.Uuid @map("public_id")
-  userId          BigInt   @map("user_id")
-  problemId       BigInt   @map("problem_id")
-  languageId      BigInt   @map("language_id")
-  sourceCode      String   @db.Text @map("source_code")
-  verdict         Verdict  @default(PENDING) @map("verdict")
-  score           Int?     @map("score")
-  executionTimeMs Int?     @map("execution_time_ms")
-  memoryUsedKb    Int?     @map("memory_used_kb")
-  submittedAt     DateTime @default(now()) @db.Timestamptz @map("submitted_at")
+  id              BigInt     @id @default(autoincrement()) @map("id")
+  publicId        String     @unique @default(uuid()) @db.Uuid @map("public_id")
+  userId          BigInt     @map("user_id")
+  problemId       BigInt     @map("problem_id")
+  languageId      BigInt     @map("language_id")
+  sourceCode      String     @db.Text @map("source_code")
+  verdict         Verdict    @default(PENDING) @map("verdict")
+  score           Int?       @map("score")
+  executionTimeMs Int?       @map("execution_time_ms")
+  memoryUsedKb    Int?       @map("memory_used_kb")
+  submittedAt     DateTime   @default(now()) @db.Timestamptz @map("submitted_at")
   aiFeedback      AiFeedback?
-  contestId BigInt?   @map("contest_id")
-  contest   Contest?  @relation(fields: [contestId], references: [id], onDelete: SetNull)
+  contestId       BigInt?    @map("contest_id")
+  contest         Contest?   @relation(fields: [contestId], references: [id], onDelete: SetNull)
   
   // Relationships
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   problem  Problem  @relation(fields: [problemId], references: [id], onDelete: Restrict)
   language Language @relation(fields: [languageId], references: [id], onDelete: Restrict)
 
-  // High-concurrency query path indexes
   @@index([userId, problemId])
   @@index([verdict])
   @@index([languageId])
@@ -217,22 +222,23 @@ model AiFeedback {
   publicId        String     @unique @default(uuid()) @map("public_id")
   submissionId    BigInt     @unique @map("submission_id")
   submission      Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  analysis        String     @db.Text // Holds the complete markdown critique
-  hints           String     @db.Text // Targeted algorithmic steps forward
-  timeComplexity  String     @map("time_complexity") // e.g., "O(N^2) -> Can be optimized to O(N log N)"
-  spaceComplexity String     @map("space_complexity") // e.g., "O(N)"
+  analysis        String     @db.Text
+  hints           String     @db.Text
+  timeComplexity  String     @map("time_complexity")
+  spaceComplexity String     @map("space_complexity")
   createdAt       DateTime   @default(now()) @map("created_at")
 
   @@map("ai_feedbacks")
 }
+
 model Contest {
-  id          BigInt              @id @default(autoincrement())
-  publicId    String              @unique @default(uuid()) @map("public_id")
+  id          BigInt           @id @default(autoincrement())
+  publicId    String           @unique @default(uuid()) @map("public_id")
   title       String
-  description String              @db.Text
-  startTime   DateTime            @map("start_time")
-  endTime     DateTime            @map("end_time")
-  createdAt   DateTime            @default(now()) @map("created_at")
+  description String           @db.Text
+  startTime   DateTime         @map("start_time")
+  endTime     DateTime         @map("end_time")
+  createdAt   DateTime         @default(now()) @map("created_at")
   problems    ContestProblem[]
   submissions Submission[]
 
@@ -240,11 +246,11 @@ model Contest {
 }
 
 model ContestProblem {
-  id         BigInt   @id @default(autoincrement())
-  contestId  BigInt   @map("contest_id")
-  problemId  BigInt   @map("problem_id")
-  contest    Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
-  problem    Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  id        BigInt  @id @default(autoincrement())
+  contestId BigInt  @map("contest_id")
+  problemId BigInt  @map("problem_id")
+  contest   Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  problem   Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
 
   @@unique([contestId, problemId])
   @@map("contest_problems")
