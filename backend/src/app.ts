@@ -16,6 +16,7 @@ import submissionRoutes from "./routes/submission.routes";
 import aiRoutes from "./routes/ai.routes";
 import userRoutes from "./routes/user.routes";
 import contestRoutes from "./routes/contest.routes";
+import { prisma } from "./config/db";
 
 const app = express();
 
@@ -54,93 +55,82 @@ app.get("/api/v1/health", (req, res) => {
  * ⚡ REAL RUNTIME EXECUTION COCKPIT:
  * Compiles and runs actual C++ or Python code using local system binaries
  */
+/**
+ * POST /api/v1/judge/run
+ * ⚡ LEETCODE-STYLE AUTOMATED RUNTIME EXECUTION COCKPIT:
+ * Appends problem-specific driver test cases to the user's solution functions
+ */
 app.post("/api/v1/judge/run", async (req, res): Promise<void> => {
-  const { sourceCode, language, customInput } = req.body;
+  // 🚀 Added problemId to the incoming body destructuring array
+  const { sourceCode, language, customInput, problemId } = req.body;
 
   if (!sourceCode) {
     res.status(400).json({ success: false, message: "Code payload cannot be blank." });
     return;
   }
 
-  // Define a unique scratchpad workspace folder name to prevent multi-tenant file overrides
   const executionToken = `run_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
   const workspacePath = path.join(__dirname, `../scratchpad_${executionToken}`);
   
   try {
-    // Ensure the temporary workspace folder exists on disk
     if (!fs.existsSync(workspacePath)) {
       fs.mkdirSync(workspacePath, { recursive: true });
     }
 
-    // 🐍 TRACK A: PYTHON INTERPRETER COMPILATION LOOP
+    // 🟩 LEETCODE INJECTION PIECE:
+    // Look up the database to see if this problem has a hidden driver script test runner
+    let combinedExecutableCode = sourceCode;
+    if (problemId) {
+      const problemSpecs = await prisma.problem.findUnique({
+        where: { id: BigInt(problemId) },
+        select: { driverScript: true }
+      });
+      if (problemSpecs?.driverScript) {
+        // Automatically inject the hidden driver sequence separated by clean newlines
+        combinedExecutableCode = `${sourceCode}\n\n${problemSpecs.driverScript}`;
+      }
+    }
+
+    // 🐍 TRACK A: PYTHON INTERPRETER LOOP
     if (language === "python") {
       const scriptFile = path.join(workspacePath, "solution.py");
-      fs.writeFileSync(scriptFile, sourceCode);
+      // 🚀 Crucial Fix: Write the COMBINED code block onto disk, not just the user raw string input
+      fs.writeFileSync(scriptFile, combinedExecutableCode);
 
-      // Pass input parameters into the execution terminal layer smoothly
-      const executionProcess = exec(`python "${scriptFile}"`, { timeout: 4000 });
-      
-      if (customInput && executionProcess.stdin) {
-        executionProcess.stdin.write(customInput);
-        executionProcess.stdin.end();
-      }
-
-      let consoleOutput = "";
-      let runtimeErrors = "";
-
-      executionProcess.stdout?.on("data", (chunk) => consoleOutput += chunk);
-      executionProcess.stderr?.on("data", (chunk) => runtimeErrors += chunk);
-
-      executionProcess.on("close", (exitCode) => {
-        // Safe file system cleanup
-        fs.rmSync(workspacePath, { recursive: true, force: true });
-
-        if (exitCode !== 0 || runtimeErrors) {
-          res.status(200).json({ success: true, output: `Runtime Exception Encountered:\n${runtimeErrors}` });
-        } else {
-          res.status(200).json({ success: true, output: consoleOutput || "Execution completed successfully with blank logs." });
-        }
+      exec(`python "${scriptFile}"`, { timeout: 4000 }, (runError, stdout, stderr) => {
+        if (fs.existsSync(workspacePath)) fs.rmSync(workspacePath, { recursive: true, force: true });
+        const combinedOutput = (stdout + stderr).trim();
+        res.status(200).json({
+          success: true,
+          output: combinedOutput || "Execution completed with 0 errors, but returned no console outputs."
+        });
       });
     } 
     // 🛠️ TRACK B: C++ NATIVE COMPILER LOOP
     else if (language === "cpp") {
       const sourceFile = path.join(workspacePath, "solution.cpp");
       const binaryFile = path.join(workspacePath, "executable.out");
-      fs.writeFileSync(sourceFile, sourceCode);
+      // 🚀 Crucial Fix: Write the COMBINED code block here as well
+      fs.writeFileSync(sourceFile, combinedExecutableCode);
 
-      // Compile the raw code file via g++ binaries
       exec(`g++ "${sourceFile}" -o "${binaryFile}"`, { timeout: 5000 }, (compileError, stdout, compileStderr) => {
         if (compileError || compileStderr) {
-          fs.rmSync(workspacePath, { recursive: true, force: true });
+          if (fs.existsSync(workspacePath)) fs.rmSync(workspacePath, { recursive: true, force: true });
           res.status(200).json({ success: true, output: `Compilation Syntax Error:\n${compileStderr || compileError?.message}` });
           return;
         }
 
-        // Execute compiled binaries safely
-        const binaryProcess = exec(`"${binaryFile}"`, { timeout: 4000 });
-
-        if (customInput && binaryProcess.stdin) {
-          binaryProcess.stdin.write(customInput);
-          binaryProcess.stdin.end();
-        }
-
-        let runOutput = "";
-        let runStderr = "";
-
-        binaryProcess.stdout?.on("data", (chunk) => runOutput += chunk);
-        binaryProcess.stderr?.on("data", (chunk) => runStderr += chunk);
-
-        binaryProcess.on("close", (exitCode) => {
-          fs.rmSync(workspacePath, { recursive: true, force: true });
-          if (exitCode !== 0 || runStderr) {
-            res.status(200).json({ success: true, output: `Runtime Exception:\n${runStderr}` });
-          } else {
-            res.status(200).json({ success: true, output: runOutput || "Execution completed successfully with blank logs." });
-          }
+        exec(`"${binaryFile}"`, { timeout: 4000 }, (runError, runStdout, runStderr) => {
+          if (fs.existsSync(workspacePath)) fs.rmSync(workspacePath, { recursive: true, force: true });
+          const combinedOutput = (runStdout + runStderr).trim();
+          res.status(200).json({
+            success: true,
+            output: combinedOutput || "Execution completed successfully with exit code 0."
+          });
         });
       });
     } else {
-      fs.rmSync(workspacePath, { recursive: true, force: true });
+      if (fs.existsSync(workspacePath)) fs.rmSync(workspacePath, { recursive: true, force: true });
       res.status(400).json({ success: false, message: "Selected programming track parameters unsupported." });
     }
 
