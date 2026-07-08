@@ -3,144 +3,97 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
-import path from "path"; // 🟩 FIXED: Added missing path utility import
-import fs from "fs"; // 🟩 FIXED: Added missing file system stream utility import
-import { exec } from "child_process"; // 🟩 FIXED: Added missing execution process utility import
-
+import path from "path";
+import fs from "fs";
+import { exec } from "child_process";
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
-import authRoutes from "./routes/auth.routes";
-import problemRoutes from "./routes/problem.routes"; 
-import judgeRoutes from "./routes/judge.routes"; 
-import submissionRoutes from "./routes/submission.routes";
-import aiRoutes from "./routes/ai.routes";
-import userRoutes from "./routes/user.routes";
-import contestRoutes from "./routes/contest.routes";
 import { prisma } from "./config/db";
+import problemRoutes from "./routes/problem.routes"; 
 
 const app = express();
-
-// 1. Core Security Boundary & Global Middleware Configurations (Mounted at Top)
 app.use(helmet());
-app.use(
-  cors({ 
-    origin: "http://localhost:3000", // 🟩 FIXED: Moved unified origin control to the head of the file
-    credentials: true 
-  })
-);
+app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-if (env.NODE_ENV === "development") {
-  app.use(morgan("dev"));
-}
+if (env.NODE_ENV === "development") app.use(morgan("dev"));
 
-// 2. Register Functional Application Endpoint Hierarchies
-app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/problems", problemRoutes); 
-app.use("/api/v1/judge", judgeRoutes); 
-app.use("/api/v1/submissions", submissionRoutes);
-app.use("/api/v1/ai", aiRoutes);
-app.use("/api/v1/users", userRoutes);
-app.use("/api/v1/contests", contestRoutes);
 
-// Global API Version Base Entry Route
-app.get("/api/v1/health", (req, res) => {
-  res.status(200).json({ success: true, message: "Online Judge Engine Gateway Live." });
-});
+const dockerLanguageMap: Record<string, { image: string; file: string; cmd: string }> = {
+  python3: { image: "python:3.11-slim", file: "solution.py", cmd: "python3 solution.py" },
+  cpp17: { image: "gcc:11", file: "solution.cpp", cmd: "g++ -O3 -std=c++17 solution.cpp -o solution && ./solution" },
+  c11: { image: "gcc:11", file: "solution.c", cmd: "gcc -O3 solution.c -o solution && ./solution" },
+  java17: { image: "openjdk:17-slim", file: "SolutionMain.java", cmd: "javac SolutionMain.java && java SolutionMain" },
+  javascript: { image: "node:20-slim", file: "solution.js", cmd: "node solution.js" }
+};
 
-/**
- * POST /api/v1/judge/run
- * ⚡ REAL RUNTIME EXECUTION COCKPIT:
- * Compiles and runs actual C++ or Python code using local system binaries
- */
-/**
- * POST /api/v1/judge/run
- * ⚡ LEETCODE-STYLE AUTOMATED RUNTIME EXECUTION COCKPIT:
- * Appends problem-specific driver test cases to the user's solution functions
- */
 app.post("/api/v1/judge/run", async (req, res): Promise<void> => {
-  // 🚀 Added problemId to the incoming body destructuring array
   const { sourceCode, language, customInput, problemId } = req.body;
+  if (!sourceCode) { res.status(400).json({ success: false, message: "Code parameter space cannot be blank." }); return; }
 
-  if (!sourceCode) {
-    res.status(400).json({ success: false, message: "Code payload cannot be blank." });
-    return;
-  }
+  const targetLang = language || "python3";
+  const runtimeEnv = dockerLanguageMap[targetLang];
+  if (!runtimeEnv) { res.status(400).json({ success: false, message: `Container layout not configured for: ${targetLang}` }); return; }
 
-  const executionToken = `run_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-  const workspacePath = path.join(__dirname, `../scratchpad_${executionToken}`);
+  const token = `run_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  const hostDir = path.resolve(__dirname, `../scratchpad_${token}`);
   
   try {
-    if (!fs.existsSync(workspacePath)) {
-      fs.mkdirSync(workspacePath, { recursive: true });
+    fs.mkdirSync(hostDir, { recursive: true });
+    
+    const problemRecord = await prisma.problem.findUnique({ where: { id: BigInt(problemId) } });
+    if (!problemRecord) { res.status(404).json({ success: false, message: "Problem missing from database." }); return; }
+
+    const scriptsMap = JSON.parse(problemRecord.driverScript || "{}");
+    let comprehensiveDriver = scriptsMap[targetLang] || "";
+
+    if (!comprehensiveDriver) {
+      res.status(400).json({ success: false, message: `No evaluation driver found for language option: ${targetLang}` });
+      return;
     }
 
-    // 🟩 LEETCODE INJECTION PIECE:
-    // Look up the database to see if this problem has a hidden driver script test runner
-    let combinedExecutableCode = sourceCode;
-    if (problemId) {
-      const problemSpecs = await prisma.problem.findUnique({
-        where: { id: BigInt(problemId) },
-        select: { driverScript: true }
-      });
-      if (problemSpecs?.driverScript) {
-        // Automatically inject the hidden driver sequence separated by clean newlines
-        combinedExecutableCode = `${sourceCode}\n\n${problemSpecs.driverScript}`;
+    // 🚀 UNIFORM TOKENS INJECTION: Bypasses hardcoded system layers completely
+    comprehensiveDriver = comprehensiveDriver
+      .replace("{{USER_CODE}}", sourceCode)
+      .replace(/{{INPUT}}/g, customInput.trim());
+
+    fs.writeFileSync(path.join(hostDir, runtimeEnv.file), comprehensiveDriver);
+
+    const dockerExecutionCommand = `docker run --rm -v "${hostDir}:/app" -w /app --memory="256m" --cpus="1.0" --network none ${runtimeEnv.image} sh -c "${runtimeEnv.cmd} 2>&1"`;
+
+    exec(dockerExecutionCommand, { timeout: 6000 }, (runError, stdout, stderr) => {
+      if (fs.existsSync(hostDir)) fs.rmSync(hostDir, { recursive: true, force: true });
+      const rawConsoleOutput = stdout || stderr || "";
+
+      const extractTokenBlock = (content: string, startToken: string, endToken: string): string => {
+        const s = content.indexOf(startToken); const e = content.indexOf(endToken);
+        if (s === -1 || e === -1) return "";
+        return content.substring(s + startToken.length, e).trim();
+      };
+
+      const extractedError = extractTokenBlock(rawConsoleOutput, "===ERROR_START===", "===ERROR_END===");
+      const extractedStdout = extractTokenBlock(rawConsoleOutput, "===STD_OUT_START===", "===STD_OUT_END===");
+      const extractedResult = extractTokenBlock(rawConsoleOutput, "===RESULT_START===", "===RESULT_END===");
+      const extractedExpected = extractTokenBlock(rawConsoleOutput, "===EXPECTED_START===", "===EXPECTED_END===");
+
+      if (!extractedResult && !extractedError) {
+        res.status(200).json({ 
+          success: true, stdout: "", output: null, expected: "Error", 
+          error: rawConsoleOutput.trim() || "Runtime Exception Error: Verify function return paths and signatures." 
+        });
+        return;
       }
-    }
 
-    // 🐍 TRACK A: PYTHON INTERPRETER LOOP
-    if (language === "python") {
-      const scriptFile = path.join(workspacePath, "solution.py");
-      // 🚀 Crucial Fix: Write the COMBINED code block onto disk, not just the user raw string input
-      fs.writeFileSync(scriptFile, combinedExecutableCode);
-
-      exec(`python "${scriptFile}"`, { timeout: 4000 }, (runError, stdout, stderr) => {
-        if (fs.existsSync(workspacePath)) fs.rmSync(workspacePath, { recursive: true, force: true });
-        const combinedOutput = (stdout + stderr).trim();
-        res.status(200).json({
-          success: true,
-          output: combinedOutput || "Execution completed with 0 errors, but returned no console outputs."
-        });
-      });
-    } 
-    // 🛠️ TRACK B: C++ NATIVE COMPILER LOOP
-    else if (language === "cpp") {
-      const sourceFile = path.join(workspacePath, "solution.cpp");
-      const binaryFile = path.join(workspacePath, "executable.out");
-      // 🚀 Crucial Fix: Write the COMBINED code block here as well
-      fs.writeFileSync(sourceFile, combinedExecutableCode);
-
-      exec(`g++ "${sourceFile}" -o "${binaryFile}"`, { timeout: 5000 }, (compileError, stdout, compileStderr) => {
-        if (compileError || compileStderr) {
-          if (fs.existsSync(workspacePath)) fs.rmSync(workspacePath, { recursive: true, force: true });
-          res.status(200).json({ success: true, output: `Compilation Syntax Error:\n${compileStderr || compileError?.message}` });
-          return;
-        }
-
-        exec(`"${binaryFile}"`, { timeout: 4000 }, (runError, runStdout, runStderr) => {
-          if (fs.existsSync(workspacePath)) fs.rmSync(workspacePath, { recursive: true, force: true });
-          const combinedOutput = (runStdout + runStderr).trim();
-          res.status(200).json({
-            success: true,
-            output: combinedOutput || "Execution completed successfully with exit code 0."
-          });
-        });
-      });
-    } else {
-      if (fs.existsSync(workspacePath)) fs.rmSync(workspacePath, { recursive: true, force: true });
-      res.status(400).json({ success: false, message: "Selected programming track parameters unsupported." });
-    }
-
+      res.status(200).json({ success: true, stdout: extractedStdout, output: extractedResult, expected: extractedExpected, error: extractedError || null });
+    });
   } catch (error: any) {
-    if (fs.existsSync(workspacePath)) fs.rmSync(workspacePath, { recursive: true, force: true });
+    if (fs.existsSync(hostDir)) fs.rmSync(hostDir, { recursive: true, force: true });
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// 3. Fallback Catch-All Central Error Middleware Handler (Must be Registered Last)
 app.use(errorHandler);
-
 export default app;
