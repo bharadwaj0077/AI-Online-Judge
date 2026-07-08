@@ -2,14 +2,12 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 
-// Define a type-safe structure for decoded token payloads
 export interface TokenPayload {
   id: string;
   publicId: string;
   role: "USER" | "ADMIN" | "MODERATOR";
 }
 
-// Extend the standard Express Request type to carry the authenticated user data
 export interface AuthenticatedRequest extends Request {
   user?: TokenPayload;
 }
@@ -31,10 +29,7 @@ export const requireAuth = async (
       return;
     }
 
-    // Verify token validity against your signature key
     const decoded = jwt.verify(token, env.JWT_SECRET) as TokenPayload;
-    
-    // Attach the user identity payload directly onto the request stream
     req.user = decoded;
     next();
   } catch (error) {
@@ -59,4 +54,19 @@ export const requireAdmin = (
     return;
   }
   next();
+};
+
+// 3. Non-Blocking Gatekeeper: Safely reads user data for public listing views
+export const optionalAuth = async (req: any, res: any, next: any) => {
+  try {
+    const token = req.cookies?.token || req.headers.authorization?.split(" ")[1];
+    if (token) {
+      // 🟩 FIXED: Standardized to use the type-safe configuration schema variable
+      const decoded = jwt.verify(token, env.JWT_SECRET) as any; 
+      req.user = decoded; 
+    }
+    next(); 
+  } catch (error) {
+    next(); 
+  }
 };

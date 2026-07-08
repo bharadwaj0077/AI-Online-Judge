@@ -1,13 +1,13 @@
+// 🚀 CRITICAL RE-ORDER: Force environment variables to compile before anything else boots up
+import { env } from "./config/env";
+
 // Patch BigInt serialization capability natively into Express JSON encoders
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
 };
 
 import http from "http";
-import dotenv from "dotenv";
-dotenv.config();
 import app from "./app";
-import { env } from "./config/env";
 import { prisma } from "./config/db";
 import { SocketHub } from "./config/socket.ts";
 
@@ -26,7 +26,7 @@ const startServer = async () => {
     await prisma.$connect();
     console.log("🚀 PostgreSQL connection authenticated via Prisma 7.");
 
-    // 2. 🟩 AUTOMATED SELF-HEALING SEEDER:
+    // 2. AUTOMATED SELF-HEALING SEEDER:
     // Ensures required rows exist inside your language reference tables after a database reset
     const languageCount = await prisma.language.count();
     if (languageCount === 0) {
@@ -46,4 +46,5 @@ const startServer = async () => {
     process.exit(1);
   }
 };
+
 startServer();

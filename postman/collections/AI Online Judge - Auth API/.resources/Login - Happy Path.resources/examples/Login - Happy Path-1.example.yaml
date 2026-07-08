@@ -9,8 +9,8 @@ request:
     type: json
     content: |-
       {
-        "username": "{{testUsername}}",
-        "password": "{{testPassword}}"
+        "identifier": "testuser_01",
+        "password": "testuser_01"
       }
 response:
   statusCode: 200

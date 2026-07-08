@@ -8,7 +8,7 @@ request:
     type: json
     content: |-
       {
-        "username": "{{testUsername}}",
+        "identifier": "{{testUsername}}",
         "password": "{{testPassword}}"
       }
 response:
