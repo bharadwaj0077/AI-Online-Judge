@@ -113,7 +113,10 @@ app.post("/api/v1/judge/run", async (req, res): Promise<void> => {
       .replace("{{USER_CODE}}", sourceCode)
       .replace(/{{INPUT}}/g, customInput.trim());
 
-    const useDocker = await isDockerAvailable();
+    // JUDGE_MODE: "docker" forces local sandboxes, "cloud" forces the Wandbox API.
+    // Default: cloud in production (free hosts can't run containers), auto-detect in dev.
+    const judgeMode = process.env.JUDGE_MODE || (env.NODE_ENV === "production" ? "cloud" : "auto");
+    const useDocker = judgeMode === "docker" ? true : judgeMode === "cloud" ? false : await isDockerAvailable();
 
     if (!useDocker) {
       // ☁️ Wandbox cloud execution path (no Docker required)
@@ -124,16 +127,34 @@ app.post("/api/v1/judge/run", async (req, res): Promise<void> => {
         return;
       }
 
-      const wbResponse = await fetch("https://wandbox.org/api/compile.json", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ compiler: wandboxCompiler, code: comprehensiveDriver }),
-      });
-      if (!wbResponse.ok) {
-        res.status(502).json({ success: false, message: `Cloud execution service returned ${wbResponse.status}. Try again shortly.` });
+      // Wandbox occasionally rejects runs when its own sandboxes are saturated
+      // ("crun: clone: Resource temporarily unavailable") — retry briefly before giving up.
+      const isInfraError = (d: any) =>
+        `${d?.compiler_error || ""}${d?.program_error || ""}`.includes("Resource temporarily unavailable");
+
+      let wbData: any = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const wbResponse = await fetch("https://wandbox.org/api/compile.json", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ compiler: wandboxCompiler, code: comprehensiveDriver }),
+        });
+        if (!wbResponse.ok) {
+          res.status(502).json({ success: false, message: `Cloud execution service returned ${wbResponse.status}. Try again shortly.` });
+          return;
+        }
+        wbData = await wbResponse.json();
+        if (!isInfraError(wbData)) break;
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 1500 * attempt));
+      }
+
+      if (isInfraError(wbData)) {
+        res.status(200).json({
+          success: true, stdout: "", output: null, expected: "Error",
+          error: "⏳ The cloud execution service is busy right now. Please wait a few seconds and press Run again.",
+        });
         return;
       }
-      const wbData: any = await wbResponse.json();
 
       if (wbData.compiler_error) {
         res.status(200).json({ success: true, stdout: "", output: null, expected: "Error", error: wbData.compiler_error });
