@@ -24,9 +24,15 @@ export class ProblemController {
     try {
       const problems = await prisma.problem.findMany({
         where: { visibility: "PUBLIC", deletedAt: null },
-        orderBy: { id: "asc" }
+        orderBy: { id: "asc" },
+        include: { problemTags: { include: { tag: true } } }
       });
-      res.status(200).json({ success: true, data: problems });
+      // Flatten the join table into a simple tags: string[] for the client
+      const shaped = problems.map((p) => {
+        const { problemTags, ...rest } = p as any;
+        return { ...rest, tags: (problemTags || []).map((pt: any) => pt.tag?.name).filter(Boolean) };
+      });
+      res.status(200).json({ success: true, data: shaped });
     } catch (error) { next(error); }
   };
 

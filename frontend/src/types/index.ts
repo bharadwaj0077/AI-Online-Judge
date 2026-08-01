@@ -12,6 +12,7 @@ export interface Problem {
   slug: string;
   statement: string;
   difficulty: "EASY" | "MEDIUM" | "HARD";
+  tags?: string[];
   createdAt: string;
 }
 

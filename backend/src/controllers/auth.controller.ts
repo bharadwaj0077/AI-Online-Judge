@@ -63,11 +63,13 @@ export class AuthController {
       });
 
       // Append authorization keys directly within HttpOnly cookies
+      // In production the frontend (vercel.app) and backend (onrender.com) are
+      // different sites, so the session cookie must be SameSite=None + Secure.
       res.cookie("token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000, 
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
       res.status(200).json({

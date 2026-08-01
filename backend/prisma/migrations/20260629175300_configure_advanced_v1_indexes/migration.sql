@@ -41,7 +41,7 @@ DROP INDEX "users_username_key";
 DROP TABLE "submissions";
 
 -- CreateTable
-CREATE TABLE "submi  ssions" (
+CREATE TABLE "submissions" (
     "id" BIGSERIAL NOT NULL,
     "public_id" UUID NOT NULL,
     "user_id" BIGINT NOT NULL,
@@ -54,23 +54,23 @@ CREATE TABLE "submi  ssions" (
     "memory_used_kb" INTEGER,
     "submitted_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "submi  ssions_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "submissions_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "submi  ssions_public_id_key" ON "submi  ssions"("public_id");
+CREATE UNIQUE INDEX "submissions_public_id_key" ON "submissions"("public_id");
 
 -- CreateIndex
-CREATE INDEX "submi  ssions_user_id_problem_id_idx" ON "submi  ssions"("user_id", "problem_id");
+CREATE INDEX "submissions_user_id_problem_id_idx" ON "submissions"("user_id", "problem_id");
 
 -- CreateIndex
-CREATE INDEX "submi  ssions_verdict_idx" ON "submi  ssions"("verdict");
+CREATE INDEX "submissions_verdict_idx" ON "submissions"("verdict");
 
 -- CreateIndex
-CREATE INDEX "submi  ssions_language_id_idx" ON "submi  ssions"("language_id");
+CREATE INDEX "submissions_language_id_idx" ON "submissions"("language_id");
 
 -- CreateIndex
-CREATE INDEX "submi  ssions_submitted_at_idx" ON "submi  ssions"("submitted_at");
+CREATE INDEX "submissions_submitted_at_idx" ON "submissions"("submitted_at");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "idx_problems_slug_active" ON "problems"("slug") WHERE ("deleted_at" IS NULL);
@@ -85,10 +85,10 @@ CREATE UNIQUE INDEX "idx_users_email_active" ON "users"("email") WHERE ("deleted
 CREATE UNIQUE INDEX "idx_users_username_active" ON "users"("username") WHERE ("deleted_at" IS NULL);
 
 -- AddForeignKey
-ALTER TABLE "submi  ssions" ADD CONSTRAINT "submi  ssions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "submi  ssions" ADD CONSTRAINT "submi  ssions_problem_id_fkey" FOREIGN KEY ("problem_id") REFERENCES "problems"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_problem_id_fkey" FOREIGN KEY ("problem_id") REFERENCES "problems"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "submi  ssions" ADD CONSTRAINT "submi  ssions_language_id_fkey" FOREIGN KEY ("language_id") REFERENCES "languages"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_language_id_fkey" FOREIGN KEY ("language_id") REFERENCES "languages"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

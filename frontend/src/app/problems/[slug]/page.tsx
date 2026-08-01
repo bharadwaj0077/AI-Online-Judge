@@ -8,6 +8,7 @@ import { Play, Loader2, Code2, CheckCircle2, XCircle, Plus, Palette } from "luci
 
 interface ProblemDetail {
   id: string;
+  slug: string;
   title: string;
   statement: string;
   inputFormat: string;
@@ -37,7 +38,11 @@ const themesRegistry = {
 };
 
 function getEditorLanguageType(langSlug: string): string {
-  return langSlug.toLowerCase().trim().includes("python") ? "python" : "cpp";
+  const slug = langSlug.toLowerCase().trim();
+  if (slug.includes("python")) return "python";
+  if (slug.includes("java") && !slug.includes("javascript")) return "java";
+  if (slug.startsWith("c1") || slug === "c") return "c";
+  return "cpp";
 }
 
 function renderSanitizedMarkdown(text: string, textMainClass: string, textMutedClass: string) {
@@ -200,6 +205,8 @@ export default function ProblemWorkspaceCanvas() {
               <select value={selectedLang} onChange={(e) => setSelectedLanguage(e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-mono font-bold py-1 px-2.5 text-zinc-300 outline-none cursor-pointer">
                 <option value="python3">Python 3.11</option>
                 <option value="cpp17">C++ 17 (GCC)</option>
+                <option value="c11">C (GCC 11)</option>
+                <option value="java17">Java 17</option>
               </select>
             </div>
             
