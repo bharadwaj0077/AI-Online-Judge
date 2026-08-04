@@ -33,7 +33,7 @@ async function main() {
     { name: "C++", displayName: "C++17", slug: "cpp17", languageBase: "cpp", version: "17", fileExtension: ".cpp", dockerImage: "gcc:11", compileCommand: "g++ -O3 -std=c++17 solution.cpp -o solution", runCommand: "./solution", isCompiled: true, executionOrder: 1 },
     { name: "Python", displayName: "Python 3.11", slug: "python3", languageBase: "python", version: "3.11", fileExtension: ".py", dockerImage: "python:3.11-slim", compileCommand: null, runCommand: "python3 solution.py", isCompiled: false, executionOrder: 2 },
     { name: "C", displayName: "C (GCC 11)", slug: "c11", languageBase: "c", version: "11", fileExtension: ".c", dockerImage: "gcc:11", compileCommand: "gcc -O3 solution.c -o solution", runCommand: "./solution", isCompiled: true, executionOrder: 3 },
-    { name: "Java", displayName: "Java 17", slug: "java17", languageBase: "java", version: "17", fileExtension: ".java", dockerImage: "openjdk:17-slim", compileCommand: "javac Main.java", runCommand: "java Main", isCompiled: true, executionOrder: 4 }
+    { name: "Java", displayName: "Java 17", slug: "java17", languageBase: "java", version: "17", fileExtension: ".java", dockerImage: "eclipse-temurin:17-jdk", compileCommand: "javac Main.java", runCommand: "java Main", isCompiled: true, executionOrder: 4 }
   ];
 
   for (const lang of baseLanguages) { await prisma.language.create({ data: lang }); }

@@ -5,6 +5,7 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import { exec } from "child_process";
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
@@ -36,7 +37,7 @@ const dockerLanguageMap: Record<string, { image: string; file: string; cmd: stri
   python3: { image: "python:3.11-slim", file: "solution.py", cmd: "python3 solution.py" },
   cpp17: { image: "gcc:11", file: "solution.cpp", cmd: "g++ -O3 -std=c++17 solution.cpp -o solution && ./solution" },
   c11: { image: "gcc:11", file: "solution.c", cmd: "gcc -O3 solution.c -o solution && ./solution" },
-  java17: { image: "openjdk:17-slim", file: "Main.java", cmd: "javac Main.java && java Main" },
+  java17: { image: "eclipse-temurin:17-jdk", file: "Main.java", cmd: "javac Main.java && java Main" },
   javascript: { image: "node:20-slim", file: "solution.js", cmd: "node solution.js" }
 };
 
@@ -92,7 +93,9 @@ app.post("/api/v1/judge/run", async (req, res): Promise<void> => {
   if (!runtimeEnv) { res.status(400).json({ success: false, message: `Container layout not configured for: ${targetLang}` }); return; }
 
   const token = `run_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-  const hostDir = path.resolve(__dirname, `../scratchpad_${token}`);
+  // Use the OS temp dir — keeping scratch files out of synced folders (OneDrive)
+  // makes Docker volume mounts significantly faster and avoids file locks.
+  const hostDir = path.join(os.tmpdir(), `oj_${token}`);
   
   try {
     fs.mkdirSync(hostDir, { recursive: true });
@@ -169,7 +172,7 @@ app.post("/api/v1/judge/run", async (req, res): Promise<void> => {
 
     const dockerExecutionCommand = `docker run --rm -v "${hostDir}:/app" -w /app --memory="256m" --cpus="1.0" --network none ${runtimeEnv.image} sh -c "${runtimeEnv.cmd} 2>&1"`;
 
-    exec(dockerExecutionCommand, { timeout: 6000 }, (runError, stdout, stderr) => {
+    exec(dockerExecutionCommand, { timeout: 20000 }, (runError, stdout, stderr) => {
       if (fs.existsSync(hostDir)) fs.rmSync(hostDir, { recursive: true, force: true });
       respondFromRawOutput(res, stdout || stderr || "");
     });
