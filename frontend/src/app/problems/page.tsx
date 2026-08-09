@@ -1,145 +1,139 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { Problem } from "@/types";
-import { Terminal, ChevronRight, Loader2, RefreshCw } from "lucide-react";
-import { clsx } from "clsx";
+import { Search, Filter, Code2 } from "lucide-react"; // <-- Added Code2 here!
 
 export default function ProblemsPage() {
-  const [problems, setProblems] = useState<Problem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>("");
   const router = useRouter();
-
-  const fetchProblems = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await api.get("/problems");
-      if (response.data?.success) {
-        // Clear list array data nodes directly out of incoming payload tracks
-        const sourceData = response.data.data || [];
-        setProblems(Array.isArray(sourceData) ? sourceData : []);
-      } else {
-        setProblems(Array.isArray(response.data) ? response.data : []);
-      }
-    } catch (err: any) {
-      // 🚀 GRACEFUL REDIRECT GATEWAY:
-      // If the backend returns 401 Unauthorized, seamlessly bounce the session to login channels
-      if (err.response?.status === 401) {
-        router.push("/login");
-        return;
-      }
-      setError("Failed to fetch coding challenges from the platform registry matrix.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [problems, setProblems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Filtering and Sorting State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("id-asc"); // Default requested by user
 
   useEffect(() => {
+    const fetchProblems = async () => {
+      try {
+        const res = await api.get("/problems");
+        if (res.data?.success) setProblems(res.data.data);
+      } catch (err) { 
+        console.error(err); 
+      } finally { 
+        setLoading(false); 
+      }
+    };
     fetchProblems();
   }, []);
 
+  // Map difficulty to numeric weights for accurate sorting
+  const diffWeight: Record<string, number> = { EASY: 1, MEDIUM: 2, HARD: 3 };
+
+  // Calculate the filtered and sorted list
+  const filteredAndSortedProblems = problems
+    .filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      if (sortBy === "id-asc") return Number(a.id) - Number(b.id);
+      if (sortBy === "id-desc") return Number(b.id) - Number(a.id);
+      if (sortBy === "diff-asc") return diffWeight[a.difficulty] - diffWeight[b.difficulty] || Number(a.id) - Number(b.id);
+      if (sortBy === "diff-desc") return diffWeight[b.difficulty] - diffWeight[a.difficulty] || Number(a.id) - Number(b.id);
+      return 0;
+    });
+
   if (loading) {
-    return (
-      <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-3 bg-zinc-950">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-        <p className="text-xs font-mono tracking-wider text-zinc-500 uppercase">Synchronizing Problem Matrix...</p>
-      </div>
-    );
+    return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-500 font-mono">Loading Catalog...</div>;
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 bg-zinc-950 min-h-screen">
-      
-      {/* Upper Context Header Panel Block */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800/60 pb-8 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-100">Problem Workstation</h1>
-          <p className="text-sm text-zinc-400 mt-1.5">Select an active challenge parameter to verify sandbox compile execution tracks</p>
+    <div className="min-h-screen bg-zinc-950 text-white font-sans p-8 md:p-12">
+      <div className="max-w-5xl mx-auto">
+        
+        {/* Header Title */}
+        <div className="mb-10">
+          <h1 className="text-4xl font-bold flex items-center gap-3 text-indigo-400 mb-2">
+            <Code2 className="h-8 w-8" /> Coding Challenges
+          </h1>
+          <p className="text-zinc-400">Master algorithms and data structures</p>
         </div>
-        <button
-          onClick={fetchProblems}
-          className="flex items-center justify-center gap-2 self-start rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-2 text-xs font-semibold text-zinc-300 transition-all hover:bg-zinc-800 hover:text-zinc-200 active:scale-[0.98]"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Refresh Registry
-        </button>
-      </div>
 
-      {/* Conditionally Render Content Layout States */}
-      {error ? (
-        <div className="rounded-2xl border border-red-500/10 bg-red-500/5 p-6 text-center">
-          <p className="text-sm font-medium text-red-400">{error}</p>
-        </div>
-      ) : problems.length === 0 ? (
-        <div className="rounded-2xl border border-zinc-800 border-dashed bg-zinc-900/10 p-12 text-center">
-          <Terminal className="mx-auto h-8 w-8 text-zinc-600 mb-3" />
-          <h3 className="text-sm font-semibold text-zinc-300">No Problems Seeded</h3>
-          <p className="text-xs text-zinc-500 mt-1">Initialize rows inside your database tables to populate the interactive challenge terminal grids.</p>
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-900/20 backdrop-blur-xl shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-sm">
-              <thead className="border-b border-zinc-800/80 bg-zinc-900/50 text-xs font-semibold tracking-wider text-zinc-400 uppercase">
-                <tr>
-                  <th scope="col" className="px-6 py-4 font-mono w-16 text-center">ID</th>
-                  <th scope="col" className="px-6 py-4">Title</th>
-                  <th scope="col" className="px-6 py-4 w-32">Difficulty</th>
-                  <th scope="col" className="px-6 py-4 w-28 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/40 bg-transparent">
-                {problems.map((problem) => {
-                  const difficultyToken = problem.difficulty?.toUpperCase();
-                  const isEasy = difficultyToken === "EASY";
-                  const isMedium = difficultyToken === "MEDIUM";
-                  
-                  // 🚀 FIXED KEY RESOLUTION LAYER:
-                  // Explicitly maps database key identifiers to clean strings to prevent rendering breaks or crashes
-                  const problemDbId = problem.id?.toString() || "";
-                  const rowKey = problemDbId || problem.publicId || `problem-row-${problem.slug}`;
-                  
-                  return (
-                    <tr key={rowKey} className="group transition-colors hover:bg-zinc-900/30">
-                      <td className="px-6 py-4 text-center font-mono font-bold text-zinc-600 group-hover:text-zinc-500">
-                        {problemDbId}
-                      </td>
-                      <td className="px-6 py-4 font-sans text-sm font-semibold text-zinc-200 hover:text-indigo-400 transition-colors">
-                        <Link href={`/problems/${problem.slug}`} className="block">
-                          {problem.title}
-                        </Link>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={clsx(
-                          "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wide border font-mono",
-                          isEasy && "bg-emerald-500/5 border-emerald-500/20 text-emerald-400",
-                          isMedium && "bg-amber-500/5 border-amber-500/20 text-amber-400",
-                          !isEasy && !isMedium && "bg-rose-500/5 border-rose-500/20 text-rose-400"
-                        )}>
-                          {problem.difficulty?.toLowerCase()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Link 
-                          href={`/problems/${problem.slug}`} 
-                          className="inline-flex items-center gap-1 rounded-xl bg-zinc-800/50 border border-zinc-700/50 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-all group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-500"
-                        >
-                          Solve <ChevronRight className="h-3.5 w-3.5" />
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {/* Filter and Search Bar */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+            <input 
+              type="text" 
+              placeholder="Search problem title..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2.5 pl-10 pr-4 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+          
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+            <select 
+              value={sortBy} 
+              onChange={(e) => setSortBy(e.target.value)}
+              className="appearance-none bg-zinc-900 border border-zinc-800 rounded-lg py-2.5 pl-10 pr-10 text-sm font-semibold text-zinc-300 focus:outline-none focus:border-indigo-500 cursor-pointer"
+            >
+              <option value="id-asc">Sort: ID (Ascending)</option>
+              <option value="id-desc">Sort: ID (Descending)</option>
+              <option value="diff-asc">Sort: Difficulty (Easy first)</option>
+              <option value="diff-desc">Sort: Difficulty (Hard first)</option>
+            </select>
           </div>
         </div>
-      )}
+
+        {/* Problems Table */}
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-zinc-900 border-b border-zinc-800 text-xs font-bold uppercase text-zinc-500">
+              <tr>
+                <th className="p-4 w-16 text-center">ID</th>
+                <th className="p-4">Title</th>
+                <th className="p-4 w-32">Difficulty</th>
+                <th className="p-4 w-32">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800 text-sm">
+              {filteredAndSortedProblems.map((p) => (
+                <tr key={p.id} className="hover:bg-zinc-900 transition-colors group">
+                  <td className="p-4 text-center font-mono text-zinc-500">{p.id}</td>
+                  <td className="p-4 font-semibold text-zinc-200 group-hover:text-indigo-400 transition-colors">
+                    {p.title}
+                  </td>
+                  <td className="p-4">
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded border 
+                      ${p.difficulty === 'EASY' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
+                        p.difficulty === 'MEDIUM' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 
+                        'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}
+                    >
+                      {p.difficulty}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <button 
+                      onClick={() => router.push(`/problems/${p.slug}`)}
+                      className="bg-zinc-800 hover:bg-indigo-600 text-white font-bold py-1.5 px-4 rounded transition-colors text-xs inline-flex items-center gap-2"
+                    >
+                       Solve
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filteredAndSortedProblems.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-8 text-center text-zinc-500 font-mono">
+                    No problems match your search filter.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
     </div>
   );
 }
