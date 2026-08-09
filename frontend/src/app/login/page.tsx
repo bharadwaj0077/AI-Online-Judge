@@ -1,121 +1,203 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
 import { api } from "@/lib/api";
-import { useAuth } from "@/context/AuthContext";
-import { LogIn, UserCheck, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { Loader2, Lock, Mail, User, ArrowRight, ShieldCheck, UserCheck } from "lucide-react";
 
-export default function LoginPage() {
-  const [identifier, setIdentifier] = useState(""); 
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const { checkAuthStatus } = useAuth();
-  const router = useRouter();
+export default function AuthPage() {
+  const [mounted, setMounted] = useState(false);
+  const [authRole, setAuthRole] = useState<"USER" | "ADMIN">("USER");
+  const [isRegister, setIsRegister] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const [formData, setFormData] = useState({ username: "", email: "", password: "" });
+
+  useEffect(() => {
+    setMounted(true);
+    // If user is already logged in when visiting /login, auto-redirect to homepage
+    const token = localStorage.getItem("token") || document.cookie.includes("token=");
+    if (token) {
+      window.location.href = "/";
+    }
+  }, []);
+
+  const handleToggleRegister = () => {
+    setIsRegister(!isRegister);
+    setAuthRole("USER");
+    setError(null);
+    setFormData({ username: "", email: "", password: "" });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSubmitting(true);
+    setLoading(true);
+    setError(null);
 
     try {
-      const response = await api.post("/auth/login", { identifier, password });
-      if (response.data?.success) {
-        await checkAuthStatus(); 
-        router.push("/"); 
+      if (isRegister) {
+        const res = await api.post("/auth/register", {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password
+        });
+
+        if (res.data?.success) {
+          const token = res.data.token;
+          const user = res.data.user;
+
+          localStorage.setItem("token", token);
+          localStorage.setItem("user", JSON.stringify(user));
+          document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax;`;
+
+          window.location.href = "/";
+        } else {
+          setError(res.data?.message || "Registration failed.");
+        }
+      } else {
+        const res = await api.post("/auth/login", {
+          email: formData.email,
+          password: formData.password,
+          requiredRole: authRole
+        });
+
+        if (res.data?.success) {
+          const token = res.data.token;
+          const user = res.data.user;
+
+          localStorage.setItem("token", token);
+          localStorage.setItem("user", JSON.stringify(user));
+          document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax;`;
+
+          window.location.href = user.role === "ADMIN" ? "/admin" : "/";
+        } else {
+          setError(res.data?.message || "Login failed.");
+        }
       }
     } catch (err: any) {
-      // 🚀 EXTRACT PRECISE ERROR METRICS
-      const backendData = err.response?.data;
-      
-      if (backendData?.errors && typeof backendData.errors === "object") {
-        const parsedIssues = Object.entries(backendData.errors)
-          .map(([field, details]: any) => `${field}: ${details._errors?.join(", ") || details}`)
-          .join(" | ");
-        setError(parsedIssues || backendData.message);
-      } else {
-        setError(backendData?.message || err.message || "Network connection refused by upstream backend.");
-      }
+      setError(err.response?.data?.message || "Authentication failed. Check credentials.");
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
+  if (!mounted) return null;
+
   return (
-    <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -z-10 h-[400px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-600/10 blur-[120px]" />
-      
-      <div className="w-full max-w-md rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-8 backdrop-blur-xl shadow-2xl shadow-black/40">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-            <LogIn className="h-5 w-5" />
+    <div className="min-h-screen bg-[#09090b] flex items-center justify-center p-4 font-sans">
+      <div className="w-full max-w-md bg-zinc-900/90 border border-zinc-800 rounded-2xl p-8 space-y-6 shadow-2xl">
+        
+        <div className="flex flex-col items-center gap-2">
+          <div className="h-10 w-10 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">
+            &gt;_
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-zinc-100">Welcome Back</h2>
-          <p className="text-sm text-zinc-400 mt-1.5">Deploy your logical instances to the judge</p>
+          <h1 className="text-xl font-bold text-white tracking-tight">
+            Synapse<span className="text-indigo-400">Judge</span>
+          </h1>
+          <p className="text-xs text-zinc-400 font-mono">
+            {isRegister ? "Create a new developer account" : "Select portal to log in"}
+          </p>
         </div>
 
-        {error && (
-          <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/5 p-3.5 text-xs font-semibold text-red-400 leading-relaxed whitespace-pre-line">
-            ⚠️ {error}
+        {!isRegister && (
+          <div className="grid grid-cols-2 gap-2 p-1 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-mono">
+            <button
+              type="button"
+              onClick={() => { setAuthRole("USER"); setError(null); }}
+              className={`py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${authRole === "USER" ? "bg-indigo-600 text-white shadow-md" : "text-zinc-400 hover:text-white"}`}
+            >
+              <UserCheck className="h-3.5 w-3.5" /> User Portal
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAuthRole("ADMIN"); setError(null); }}
+              className={`py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${authRole === "ADMIN" ? "bg-amber-600 text-white shadow-md" : "text-zinc-400 hover:text-white"}`}
+            >
+              <ShieldCheck className="h-3.5 w-3.5" /> Admin Portal
+            </button>
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">
-              Email or Username
+        {error && (
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-mono">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs font-mono">
+          {isRegister && (
+            <div className="space-y-1">
+              <label className="text-zinc-400 uppercase font-bold text-[10px]">Username</label>
+              <div className="relative">
+                <User className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
+                <input
+                  type="text"
+                  required
+                  placeholder="johndoe"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-white outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-zinc-400 uppercase font-bold text-[10px]">
+              {isRegister ? "Email Address" : "Email Address or Username"}
             </label>
             <div className="relative">
-              <UserCheck className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+              <Mail className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
               <input
                 type="text"
                 required
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 py-2.5 pl-11 pr-4 text-sm text-zinc-200 placeholder-zinc-600 outline-none transition-all focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30"
-                placeholder="coder_404 or name@domain.com"
+                placeholder={isRegister ? "developer@synapse.io" : (authRole === "ADMIN" ? "admin@synapse.io" : "developer@synapse.io")}
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-white outline-none focus:border-indigo-500"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">Security Password</label>
+          <div className="space-y-1">
+            <label className="text-zinc-400 uppercase font-bold text-[10px]">Password</label>
             <div className="relative">
-              <Lock className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+              <Lock className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
               <input
                 type="password"
                 required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 py-2.5 pl-11 pr-4 text-sm text-zinc-200 placeholder-zinc-600 outline-none transition-all focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30"
                 placeholder="••••••••"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-white outline-none focus:border-indigo-500"
               />
             </div>
           </div>
 
           <button
             type="submit"
-            disabled={submitting}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/10 transition-all hover:bg-indigo-500 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+            disabled={loading}
+            className={`w-full py-2.5 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer mt-2 ${!isRegister && authRole === "ADMIN" ? "bg-amber-600 hover:bg-amber-500" : "bg-indigo-600 hover:bg-indigo-500"}`}
           >
-            {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
               <>
-                Initialize Session <ArrowRight className="h-4 w-4" />
+                {isRegister ? "Create User Account" : `Login to ${authRole} Portal`} <ArrowRight className="h-4 w-4" />
               </>
             )}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-zinc-500">
-          New to the judge?{" "}
-          <Link href="/register" className="font-medium text-indigo-400 hover:text-indigo-300 hover:underline transition-all">
-            Create an execution track
-          </Link>
-        </p>
+        <div className="text-center text-xs text-zinc-500 pt-2 border-t border-zinc-800/80">
+          {isRegister ? "Already registered?" : "Don't have an account?"}{" "}
+          <button
+            type="button"
+            onClick={handleToggleRegister}
+            className="text-indigo-400 hover:underline font-bold cursor-pointer"
+          >
+            {isRegister ? "Log In" : "Register Now"}
+          </button>
+        </div>
+
       </div>
     </div>
   );

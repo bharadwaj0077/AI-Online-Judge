@@ -1,255 +1,143 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
-import { User, Activity, CheckCircle, Zap, LogOut, Loader2, PlusCircle, LayoutDashboard, Settings } from "lucide-react";
+import { LayoutDashboard, CheckCircle2, Trophy, Zap, Code2, Loader2, Award } from "lucide-react";
 
-interface ProfileStats {
-  totalSubmissions: number;
-  acceptanceRate: number;
-  solvedBreakdown: {
-    totalSolved: number;
-    easy: number;
-    medium: number;
-    hard: number;
-  };
+interface UserStats {
+  problemsSolved: number;
+  totalProblems: number;
+  accuracyRate: string;
+  globalRating: number;
+  globalRank: string;
+  recentActivity: { id: string; problem: string; status: string; submittedAt: string; lang: string }[];
 }
 
-export default function DashboardPage() {
-  const { user, logout } = useAuth();
-  const [stats, setStats] = useState<ProfileStats | null>(null);
+export default function UserDashboardPage() {
+  const [stats, setStats] = useState<UserStats>({
+    problemsSolved: 0,
+    totalProblems: 0,
+    accuracyRate: "0.0%",
+    globalRating: 0,
+    globalRank: "-",
+    recentActivity: []
+  });
   const [loading, setLoading] = useState(true);
 
-  // Admin-only form states
-  const [problemTitle, setProblemTitle] = useState("");
-  const [problemStatement, setProblemStatement] = useState("");
-  const [problemDifficulty, setProblemDifficulty] = useState("EASY");
-  const [adminMessage, setAdminMessage] = useState("");
-
   useEffect(() => {
-    const fetchUserStats = async () => {
-      // Admins don't need to load coding submission histories
-      if (user?.role === "ADMIN") {
-        setLoading(false);
-        return;
-      }
+    const fetchDashboardStats = async () => {
       try {
-        const response = await api.get("/users/profile/stats");
-        if (response.data?.success) {
-          setStats(response.data.data);
+        const storedUserStr = localStorage.getItem("user");
+        let queryStr = "";
+        if (storedUserStr) {
+          try {
+            const parsed = JSON.parse(storedUserStr);
+            if (parsed?.id) queryStr = `?userId=${parsed.id}`;
+          } catch {}
         }
-      } catch (error) {
-        console.error("Failed to load account metrics:", error);
+
+        const res = await api.get(`/dashboard${queryStr}`);
+        if (res?.data?.success) {
+          setStats(res.data.data);
+        }
+      } catch (err) {
+        console.error("Dashboard calculation error:", err);
       } finally {
         setLoading(false);
       }
     };
-    if (user) fetchUserStats();
-  }, [user]);
-
-  const handleCreateProblem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAdminMessage("");
-    try {
-      const response = await api.post("/problems", {
-        title: problemTitle,
-        statement: problemStatement,
-        difficulty: problemDifficulty,
-      });
-      if (response.data) {
-        setAdminMessage("🚀 New algorithmic challenge successfully seeded into PostgreSQL database!");
-        setProblemTitle("");
-        setProblemStatement("");
-      }
-    } catch (error: any) {
-      setAdminMessage("❌ Failed to push problem parameters to registry database rows.");
-    }
-  };
+    fetchDashboardStats();
+  }, []);
 
   if (loading) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-3 bg-zinc-950">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-        <p className="text-xs font-mono text-zinc-500 uppercase tracking-widest">Hydrating Profile Workspace...</p>
+      <div className="min-h-[calc(100vh-3.5rem)] bg-[#09090b] flex items-center justify-center text-xs text-zinc-400 font-mono gap-2">
+        <Loader2 className="h-5 w-5 animate-spin text-indigo-500" /> Computing real-time developer metrics...
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 space-y-8">
+    <div className="min-h-[calc(100vh-3.5rem)] bg-[#09090b] text-zinc-100 p-8 max-w-6xl mx-auto space-y-6 font-sans">
       
-      {/* SHARED ACCOUNT HEADER PANEL */}
-      <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/30 p-6 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-xl">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 border border-indigo-400/20 text-white shadow-lg shadow-indigo-500/10">
-            <User className="h-7 w-7" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-zinc-100">{user?.username || "Developer Profile"}</h2>
-            <span className={`inline-block text-[10px] font-mono font-bold tracking-wider mt-1 px-2 py-0.5 rounded uppercase border ${
-              user?.role === "ADMIN" ? "bg-rose-500/10 border-rose-500/20 text-rose-400" : "bg-indigo-500/10 border-indigo-500/20 text-indigo-400"
-            }`}>
-              Authority Level: {user?.role || "USER"}
-            </span>
-          </div>
-        </div>
-
-        <button
-          onClick={logout}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 px-4 py-2.5 text-xs font-bold text-red-400 transition-all active:scale-[0.98]"
-        >
-          <LogOut className="h-4 w-4" />
-          Terminate Session Loop
-        </button>
+      <div className="border-b border-zinc-800 pb-4">
+        <h1 className="text-xl font-bold flex items-center gap-2">
+          <LayoutDashboard className="h-6 w-6 text-indigo-400" /> Personal Developer Dashboard
+        </h1>
+        <p className="text-xs text-zinc-400 font-mono mt-1">Real-time accuracy and score metrics calculated directly from database submissions</p>
       </div>
 
-      {/* 🚀 ADMIN ROLE CONDITIONAL INTERFACE LAYOUT */}
-      {user?.role === "ADMIN" ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Admin Problem Seeding Station Form */}
-          <div className="lg:col-span-2 rounded-2xl border border-zinc-800 bg-zinc-900/10 p-6 backdrop-blur-md space-y-4">
-            <div className="flex items-center gap-2 text-rose-400 font-mono font-bold text-xs uppercase mb-2">
-              <PlusCircle className="h-4 w-4" /> Challenge Creation Console
-            </div>
-
-            {adminMessage && (
-              <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-3.5 text-xs text-zinc-300 font-medium">
-                {adminMessage}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateProblem} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">Challenge Title</label>
-                <input
-                  type="text"
-                  required
-                  value={problemTitle}
-                  onChange={(e) => setProblemTitle(e.target.value)}
-                  placeholder="e.g., Invert Binary Tree Matrix"
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-sm text-zinc-200 outline-none focus:border-rose-500/50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">Difficulty Tier</label>
-                <select
-                  value={problemDifficulty}
-                  onChange={(e) => setProblemDifficulty(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-sm text-zinc-200 outline-none focus:border-rose-500/50 cursor-pointer"
-                >
-                  <option value="EASY">EASY (10 Points)</option>
-                  <option value="MEDIUM">MEDIUM (30 Points)</option>
-                  <option value="HARD">HARD (50 Points)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">Problem Statement Description</label>
-                <textarea
-                  required
-                  rows={5}
-                  value={problemStatement}
-                  onChange={(e) => setProblemStatement(e.target.value)}
-                  placeholder="Provide comprehensive runtime target input parameters and structural rules..."
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-sm text-zinc-200 outline-none focus:border-rose-500/50 resize-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-rose-600 hover:bg-rose-500 py-2.5 text-sm font-bold text-white shadow-lg shadow-rose-600/10 transition-all active:scale-[0.98]"
-              >
-                Deploy Problem to Platform Registry
-              </button>
-            </form>
-          </div>
-
-          {/* Admin Sidebar Operations Widget */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-6 space-y-4">
-            <div className="flex items-center gap-2 text-zinc-400 font-mono text-xs font-bold uppercase">
-              <Settings className="h-4 w-4" /> System Control Variables
-            </div>
-            <p className="text-xs text-zinc-500 leading-relaxed">
-              As an administrator, you possess dynamic global read/write operational access hooks across the platform repository schema tables.
-            </p>
-            <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950 p-4 text-center text-xs text-zinc-600 italic">
-              System monitoring analytics gauges coming online soon.
-            </div>
-          </div>
+      {/* METRICS GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-mono">
+        <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-2">
+          <span className="text-zinc-500 text-[10px] uppercase font-bold flex items-center gap-1.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Problems Solved
+          </span>
+          <div className="text-2xl font-bold text-white">{stats.problemsSolved} <span className="text-xs text-zinc-500 font-normal">/ {stats.totalProblems}</span></div>
         </div>
-      ) : (
-        /* 🟩 STANDARD USER ROLE CONDITIONS INTERFACE LAYOUT */
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/10 p-6 flex items-center gap-4 shadow-md">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-                <Activity className="h-5 w-5" />
-              </div>
-              <div>
-                <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Total Attempts</span>
-                <h3 className="text-2xl font-mono font-black text-zinc-200 mt-0.5">{stats?.totalSubmissions || 0}</h3>
-              </div>
-            </div>
 
-            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/10 p-6 flex items-center gap-4 shadow-md">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                <CheckCircle className="h-5 w-5" />
-              </div>
-              <div>
-                <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Accuracy Level</span>
-                <h3 className="text-2xl font-mono font-black text-emerald-400 mt-0.5">{stats?.acceptanceRate || "0.00"}%</h3>
-              </div>
-            </div>
+        <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-2">
+          <span className="text-zinc-500 text-[10px] uppercase font-bold flex items-center gap-1.5">
+            <Trophy className="h-4 w-4 text-amber-400" /> Global Rating
+          </span>
+          <div className="text-2xl font-bold text-amber-400">{stats.globalRating} <span className="text-xs text-zinc-500 font-normal">pts</span></div>
+        </div>
 
-            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/10 p-6 flex items-center gap-4 shadow-md">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                <Zap className="h-5 w-5" />
-              </div>
-              <div>
-                <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Problems Solved</span>
-                <h3 className="text-2xl font-mono font-black text-zinc-200 mt-0.5">{stats?.solvedBreakdown?.totalSolved || 0}</h3>
-              </div>
-            </div>
+        <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-2">
+          <span className="text-zinc-500 text-[10px] uppercase font-bold flex items-center gap-1.5">
+            <Zap className="h-4 w-4 text-indigo-400" /> Accuracy Rate
+          </span>
+          <div className="text-2xl font-bold text-indigo-400">{stats.accuracyRate}</div>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-2">
+          <span className="text-zinc-500 text-[10px] uppercase font-bold flex items-center gap-1.5">
+            <Award className="h-4 w-4 text-purple-400" /> Global Rank
+          </span>
+          <div className="text-2xl font-bold text-purple-400">{stats.globalRank}</div>
+        </div>
+      </div>
+
+      {/* RECENT SUBMISSIONS TABLE */}
+      <div className="space-y-3 font-mono">
+        <h2 className="text-xs uppercase font-bold text-zinc-400 tracking-wider flex items-center gap-2">
+          <Code2 className="h-4 w-4 text-zinc-500" /> Personal Submission Logs ({stats.recentActivity.length})
+        </h2>
+
+        {stats.recentActivity.length === 0 ? (
+          <div className="p-8 text-center bg-zinc-900/40 border border-zinc-800 rounded-2xl text-zinc-500 text-xs italic">
+            No submissions recorded in the database for your account yet. Navigate to <strong>Problems</strong> and submit a solution to populate your logs.
           </div>
-
-          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/20 p-6 shadow-xl max-w-2xl">
-            <h4 className="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-6 font-mono">Algorithmic Resolution Breakdown</h4>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-xs font-semibold mb-1.5">
-                  <span className="text-emerald-400 uppercase tracking-wide">Easy Challenges</span>
-                  <span className="font-mono text-zinc-400">{stats?.solvedBreakdown?.easy || 0} Solved</span>
-                </div>
-                <div className="h-2 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800/60">
-                  <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${Math.min(((stats?.solvedBreakdown?.easy || 0) / 10) * 100, 100)}%` }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs font-semibold mb-1.5">
-                  <span className="text-amber-400 uppercase tracking-wide">Medium Challenges</span>
-                  <span className="font-mono text-zinc-400">{stats?.solvedBreakdown?.medium || 0} Solved</span>
-                </div>
-                <div className="h-2 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800/60">
-                  <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${Math.min(((stats?.solvedBreakdown?.medium || 0) / 10) * 100, 100)}%` }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs font-semibold mb-1.5">
-                  <span className="text-rose-400 uppercase tracking-wide">Hard Challenges</span>
-                  <span className="font-mono text-zinc-400">{stats?.solvedBreakdown?.hard || 0} Solved</span>
-                </div>
-                <div className="h-2 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800/60">
-                  <div className="h-full bg-rose-500 transition-all duration-500" style={{ width: `${Math.min(((stats?.solvedBreakdown?.hard || 0) / 10) * 100, 100)}%` }} />
-                </div>
-              </div>
-            </div>
+        ) : (
+          <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl overflow-hidden text-xs">
+            <table className="w-full text-left">
+              <thead className="bg-zinc-950 text-zinc-500 text-[10px] uppercase border-b border-zinc-800">
+                <tr>
+                  <th className="p-3.5">Problem</th>
+                  <th className="p-3.5">Status</th>
+                  <th className="p-3.5">Language</th>
+                  <th className="p-3.5 text-right">Submitted At</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800/60">
+                {stats.recentActivity.map((act) => (
+                  <tr key={act.id} className="hover:bg-zinc-800/40 transition-colors">
+                    <td className="p-3.5 font-bold text-white">{act.problem}</td>
+                    <td className="p-3.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${act.status === "ACCEPTED" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"}`}>
+                        {act.status}
+                      </span>
+                    </td>
+                    <td className="p-3.5 text-zinc-400">{act.lang}</td>
+                    <td className="p-3.5 text-right text-zinc-500">{act.submittedAt}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </>
-      )}
+        )}
+      </div>
+
     </div>
   );
 }
