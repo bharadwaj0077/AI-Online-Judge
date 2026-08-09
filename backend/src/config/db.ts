@@ -11,7 +11,6 @@ export const prisma = new PrismaClient({
   log: env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
 });
 
-// Graceful shutdown handling
 export const disconnectDB = async () => {
   await prisma.$disconnect();
   await pool.end();
