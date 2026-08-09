@@ -7,6 +7,9 @@ build/
 .env
 .env.local
 
+# AWS Private Keys (Security)
+oj-key.pem
+
 # Prisma Local Telemetry Logs
 /prisma/migrations/migration_lock.toml
 
