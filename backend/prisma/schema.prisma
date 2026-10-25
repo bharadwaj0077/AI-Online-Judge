@@ -66,6 +66,7 @@ model User {
 
   createdProblems Problem[]
   submissions     Submission[]
+  mockInterviews  MockInterview[]
 
   @@unique([email], map: "idx_users_email_active", where: { deletedAt: null })
   @@unique([username], map: "idx_users_username_active", where: { deletedAt: null })
@@ -103,6 +104,7 @@ model Problem {
   testCases         TestCase[]
   submissions       Submission[]
   problemTags       ProblemTag[]
+  mockInterviews    MockInterview[]
 
   @@unique([slug], map: "idx_problems_slug_active", where: { deletedAt: null })
   @@index([difficulty])
@@ -261,4 +263,34 @@ model ArenaMatchRecord {
   createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("arena_matches")
+}
+
+model MockInterview {
+  id               String    @id @default(uuid()) @map("id")
+  userId           BigInt?   @map("user_id")
+  user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  roleTitle        String    @map("role_title")
+  targetCompany    String    @default("Google") @map("target_company")
+  interviewerName  String    @default("Alex (Staff SWE)") @map("interviewer_name")
+  topic            String    @map("topic")
+  difficulty       String    @map("difficulty")
+  durationMinutes  Int       @map("duration_minutes")
+  status           String    @default("IN_PROGRESS") @map("status")
+  problemId        BigInt?   @map("problem_id")
+  problem          Problem?  @relation(fields: [problemId], references: [id], onDelete: SetNull)
+  problemTitle     String?   @map("problem_title")
+  problemStatement String?   @db.Text @map("problem_statement")
+  currentCode      String?   @db.Text @map("current_code")
+  language         String    @default("python3") @map("language")
+  transcript       Json      @default("[]") @map("transcript")
+  telemetry        Json?     @map("telemetry")
+  scorecard        Json?     @map("scorecard")
+  startTime        DateTime  @default(now()) @map("start_time")
+  endTime          DateTime? @map("end_time")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("mock_interviews")
 }

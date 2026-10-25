@@ -2,6 +2,7 @@ import { Server as HttpServer } from "http";
 import { Server, Socket } from "socket.io";
 
 import { registerArenaSocketHandlers } from "../sockets/arena.socket";
+import { registerInterviewSocketHandlers } from "../sockets/interview.socket";
 
 export class SocketHub {
   private static io: Server | null = null;
@@ -26,6 +27,9 @@ export class SocketHub {
 
       // Hook: Register 1v1 Arena matchmaking, code sync, anti-cheat, and referee handlers
       registerArenaSocketHandlers(this.io!, socket);
+
+      // Hook: Register Conversational AI Mock Interview handlers
+      registerInterviewSocketHandlers(this.io!, socket);
 
       // Hook: Triggered when a developer clicks into a live contest workspace arena
       socket.on("join_contest", (contestPublicId: string) => {

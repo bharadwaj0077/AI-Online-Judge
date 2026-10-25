@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Code2, Trophy, Cpu, LayoutDashboard, LogOut, LogIn, ShieldCheck, Swords } from "lucide-react";
+import { Code2, Trophy, Cpu, LayoutDashboard, LogOut, LogIn, ShieldCheck, Swords, Bot } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -59,6 +59,17 @@ export default function Navbar() {
           <Swords className="h-4 w-4 text-rose-500 animate-pulse" /> 1V1 ARENA
           <span className="px-1.5 py-0.5 text-[9px] font-mono uppercase bg-rose-500/20 text-rose-400 border border-rose-500/40 rounded-full font-bold">
             LIVE
+          </span>
+        </Link>
+        <Link
+          href="/interview"
+          className={`hover:text-cyan-400 flex items-center gap-1.5 transition-colors ${
+            pathname.startsWith("/interview") ? "text-cyan-400 font-bold" : "text-zinc-300"
+          }`}
+        >
+          <Bot className="h-4 w-4 text-cyan-400 animate-pulse" /> AI INTERVIEW
+          <span className="px-1.5 py-0.5 text-[9px] font-mono uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-full font-bold">
+            FAANG
           </span>
         </Link>
         <Link href="/contests" className={`hover:text-white flex items-center gap-1.5 transition-colors ${pathname.startsWith("/contests") ? "text-indigo-400 font-bold" : ""}`}>

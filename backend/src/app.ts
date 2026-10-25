@@ -11,6 +11,7 @@ import { errorHandler } from "./middlewares/error.middleware";
 import { prisma } from "./config/db";
 import { AiService } from "./services/ai.service";
 import { ArenaService } from "./services/arena.service";
+import { MockInterviewService } from "./services/mock-interview.service";
 import { Verdict, Difficulty, ProblemVisibility, UserRole } from "@prisma/client";
 
 // Patch BigInt serialization capability natively into Express JSON encoders
@@ -1531,6 +1532,120 @@ app.post("/api/v1/arena/custom-room", optionalAuth, async (req: AuthenticatedReq
     });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * 🎙️ REAL-TIME CONVERSATIONAL AI MOCK INTERVIEWER ENDPOINTS
+ */
+
+// 1. Initialize new mock interview session with candidate config
+app.post("/api/v1/interviews", optionalAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { roleTitle, targetCompany, interviewerName, topic, difficulty, durationMinutes, problemId } = req.body;
+
+    const session = await MockInterviewService.createInterview({
+      userId: req.user?.id,
+      roleTitle: roleTitle || "Senior Software Engineer (L5)",
+      targetCompany: targetCompany || "Google",
+      interviewerName: interviewerName || "Alex (Staff SWE)",
+      topic: topic || "Data Structures & Algorithms",
+      difficulty: difficulty || "Medium",
+      durationMinutes: Number(durationMinutes) || 45,
+      problemId
+    });
+
+    res.status(201).json({ success: true, data: session });
+  } catch (err: any) {
+    console.error("Error creating mock interview:", err);
+    res.status(500).json({ success: false, message: err?.message || "Failed to create mock interview session" });
+  }
+});
+
+// 2. Fetch specific interview session state, transcript, problem, and scorecard
+app.get("/api/v1/interviews/:id", optionalAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const session = await MockInterviewService.getInterview(id);
+
+    if (!session) {
+      res.status(404).json({ success: false, message: "Interview session not found." });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: session });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err?.message || "Failed to fetch interview session" });
+  }
+});
+
+// 3. Fetch past mock interviews
+app.get("/api/v1/interviews", optionalAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const userId = req.user?.id || (req.query.userId as string);
+    const interviews = await MockInterviewService.getUserInterviews(userId);
+    res.status(200).json({ success: true, data: interviews });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err?.message || "Failed to fetch interviews history" });
+  }
+});
+
+// 4. Live code inspection endpoint
+app.post("/api/v1/interviews/:id/inspect", optionalAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { code, language, focus } = req.body;
+    const analysis = await MockInterviewService.inspectCode({
+      interviewId: id,
+      code: code || "",
+      language: language || "python3",
+      focus: focus || "general"
+    });
+    res.status(200).json({ success: true, data: analysis });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err?.message || "Failed to inspect code" });
+  }
+});
+
+// 5. Conversational turn processing (speech / test run / hint)
+app.post("/api/v1/interviews/:id/turn", optionalAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { userSpeech, currentCode, language, contextType, testResults, screenObservation } = req.body;
+
+    const result = await MockInterviewService.processTurn({
+      interviewId: id,
+      userSpeech,
+      currentCode,
+      language,
+      contextType,
+      testResults,
+      screenObservation
+    });
+
+    res.status(200).json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err?.message || "Failed to process interview turn" });
+  }
+});
+
+// 6. Conclude interview and compute FAANG-caliber evaluation scorecard
+app.post("/api/v1/interviews/:id/end", optionalAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { finalCode, language, telemetry } = req.body;
+
+    const scorecard = await MockInterviewService.finalizeInterview({
+      interviewId: id,
+      finalCode,
+      language,
+      telemetry
+    });
+
+    res.status(200).json({ success: true, data: scorecard });
+  } catch (err: any) {
+    console.error("Error ending mock interview:", err);
+    res.status(500).json({ success: false, message: err?.message || "Failed to conclude interview" });
   }
 });
 
