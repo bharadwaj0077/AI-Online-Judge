@@ -43,6 +43,8 @@ export default function ProblemWorkspaceCanvas() {
   const [executing, setExecuting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [hintLoading, setHintLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [aiHint, setAiHint] = useState<string | null>(null);
   const [aiVerdict, setAiVerdict] = useState<{ time: string; space: string; summary: string } | null>(null);
   const activeTheme = "vs-dark";
@@ -93,15 +95,37 @@ export default function ProblemWorkspaceCanvas() {
   }, []);
 
   const getHint = async () => {
-    if (!problem) return; setAiHint(null);
-    try { const res = await api.post(`/problems/${problem.id}/hint`, { sourceCode: editorCode, language: selectedLang }); if (res.data?.success) setAiHint(res.data.hint); } 
-    catch { setAiHint("Consider optimizing your loops or using a hash map to achieve better time complexity."); }
+    if (!problem || hintLoading) return;
+    setHintLoading(true);
+    setAiHint(null);
+    try {
+      const res = await api.post(`/problems/${problem.id}/hint`, { sourceCode: editorCode, language: selectedLang });
+      if (res.data?.success && res.data.hint) {
+        setAiHint(res.data.hint);
+      } else {
+        setAiHint(res.data?.hint || "Consider breaking down the challenge into smaller invariants and edge cases.");
+      }
+    } catch {
+      setAiHint("Consider analyzing input constraints and testing edge cases with an alternative data structure.");
+    } finally {
+      setHintLoading(false);
+    }
   };
 
   const askAI = async () => {
-    if (!problem) return; setAiVerdict(null);
-    try { const res = await api.post(`/problems/${problem.id}/verdict`, { sourceCode: editorCode, language: selectedLang }); if (res.data?.success) setAiVerdict({ time: res.data.timeComplexity, space: res.data.spaceComplexity, summary: res.data.analysis }); } 
-    catch { setAiVerdict({ time: "O(N)", space: "O(N)", summary: "Linear time solution using additional space." }); }
+    if (!problem || aiLoading) return;
+    setAiLoading(true);
+    setAiVerdict(null);
+    try {
+      const res = await api.post(`/problems/${problem.id}/verdict`, { sourceCode: editorCode, language: selectedLang });
+      if (res.data?.success) {
+        setAiVerdict({ time: res.data.timeComplexity, space: res.data.spaceComplexity, summary: res.data.analysis });
+      }
+    } catch {
+      setAiVerdict({ time: "O(N)", space: "O(N)", summary: "Linear time solution using additional space." });
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleRunCodeAction = async () => {
@@ -180,14 +204,42 @@ export default function ProblemWorkspaceCanvas() {
           </ReactMarkdown>
         </div>
 
-        {aiHint && <div className="p-3.5 rounded-xl border border-yellow-500/20 bg-yellow-500/5 text-xs text-yellow-500 font-mono leading-relaxed">{aiHint}</div>}
-        {aiVerdict && (
-          <div className="p-4 rounded-xl border border-purple-500/20 bg-purple-500/5 space-y-2 font-mono text-xs">
-            <div className="flex gap-4 border-b border-purple-500/10 pb-2">
-              <div><span className="text-zinc-500 block text-[9px] uppercase font-bold">Runtime</span><strong className="text-purple-400 font-bold">{aiVerdict.time}</strong></div>
-              <div><span className="text-zinc-500 block text-[9px] uppercase font-bold">Memory</span><strong className="text-purple-400 font-bold">{aiVerdict.space}</strong></div>
+        {aiHint && (
+          <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-200 font-sans leading-relaxed relative">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-amber-500/20">
+              <span className="font-bold uppercase tracking-wider text-[10px] text-amber-400 flex items-center gap-1.5 font-mono">
+                <HelpCircle className="h-3.5 w-3.5" /> AI Pedagogical Hint
+              </span>
+              <button onClick={() => setAiHint(null)} className="text-amber-400/70 hover:text-amber-200 cursor-pointer">
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
-            <p className="text-zinc-300 text-xs">{aiVerdict.summary}</p>
+            <div className="prose prose-invert prose-xs text-amber-100 max-w-none whitespace-pre-wrap font-sans">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiHint}</ReactMarkdown>
+            </div>
+          </div>
+        )}
+        {aiVerdict && (
+          <div className="p-4 rounded-xl border border-purple-500/30 bg-purple-500/10 space-y-2 text-xs relative font-sans">
+            <div className="flex items-center justify-between pb-2 border-b border-purple-500/20">
+              <span className="font-bold uppercase tracking-wider text-[10px] text-purple-400 flex items-center gap-1.5 font-mono">
+                <Sparkles className="h-3.5 w-3.5" /> Complexity Profile
+              </span>
+              <button onClick={() => setAiVerdict(null)} className="text-purple-400/70 hover:text-purple-200 cursor-pointer">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="flex gap-6 border-b border-purple-500/10 pb-2">
+              <div>
+                <span className="text-zinc-400 block text-[9px] uppercase font-bold font-mono">Estimated Runtime</span>
+                <strong className="text-purple-300 font-mono font-bold text-sm">{aiVerdict.time}</strong>
+              </div>
+              <div>
+                <span className="text-zinc-400 block text-[9px] uppercase font-bold font-mono">Memory Space</span>
+                <strong className="text-purple-300 font-mono font-bold text-sm">{aiVerdict.space}</strong>
+              </div>
+            </div>
+            <p className="text-zinc-200 text-xs leading-relaxed">{aiVerdict.summary}</p>
           </div>
         )}
       </div>
@@ -209,8 +261,22 @@ export default function ProblemWorkspaceCanvas() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={getHint} className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 border border-zinc-800 bg-zinc-900/40 text-yellow-500/90 hover:bg-zinc-800 rounded-lg font-medium cursor-pointer"><HelpCircle className="h-3.5 w-3.5" /> Get Hint</button>
-            <button onClick={askAI} className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 border border-zinc-800 bg-zinc-900/40 text-purple-400 hover:bg-zinc-800 rounded-lg font-medium cursor-pointer"><Sparkles className="h-3.5 w-3.5" /> Ask AI</button>
+            <button
+              onClick={getHint}
+              disabled={hintLoading}
+              className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 rounded-lg font-medium cursor-pointer transition-colors"
+            >
+              {hintLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" /> : <HelpCircle className="h-3.5 w-3.5 text-amber-400" />}
+              Get Hint
+            </button>
+            <button
+              onClick={askAI}
+              disabled={aiLoading}
+              className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 border border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 rounded-lg font-medium cursor-pointer transition-colors"
+            >
+              {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-400" /> : <Sparkles className="h-3.5 w-3.5 text-purple-400" />}
+              Ask AI
+            </button>
             <button onClick={handleRunCodeAction} disabled={executing || submitting} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900/60 hover:bg-zinc-800 text-xs font-semibold py-1.5 px-3 text-zinc-300 cursor-pointer">
               {executing ? <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" /> : <Play className="h-3.5 w-3.5 fill-current text-zinc-400" />} Run Code
             </button>
