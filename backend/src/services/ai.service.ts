@@ -9,11 +9,30 @@ const getGenAI = () => {
   return new GoogleGenAI({ apiKey });
 };
 
+export interface TieredHintItem {
+  tier: number;
+  title: string;
+  badge: string;
+  focus: string;
+  content: string;
+  keyTakeaway: string;
+}
+
+export interface TieredHintsResponse {
+  problemId: string;
+  problemTitle: string;
+  tiers: TieredHintItem[];
+}
+
 export class AiService {
   /**
-   * Generates progressive, pedagogical hints for the user's current code workspace without spoiling the solution.
+   * Generates a 3-tier sequential scaffolding hint matrix tailored to the problem and student's current code.
    */
-  static async generateHint(problemId: string, sourceCode: string, language: string): Promise<string> {
+  static async generateTieredHints(
+    problemId: string,
+    sourceCode: string,
+    language: string
+  ): Promise<TieredHintsResponse> {
     const ai = getGenAI();
 
     const problem = await prisma.problem.findFirst({
@@ -30,10 +49,11 @@ export class AiService {
       throw new Error("Target problem not found.");
     }
 
-    const prompt = `You are a world-class Computer Science Professor and Technical Interview Coach.
-A student is working on the following problem and has requested a hint.
+    const prompt = `You are an elite Computer Science Professor and Principal Technical Interview Mentor.
+A student is solving an algorithmic problem on an online judge platform and needs structured, progressive guidance without spoilers.
 
 [PROBLEM TITLE]: ${problem.title}
+[DIFFICULTY]: ${problem.difficulty}
 [PROBLEM STATEMENT]: ${problem.statement}
 [CONSTRAINTS]: ${problem.constraintsText || "None specified"}
 [PROGRAMMING LANGUAGE]: ${language || "Python"}
@@ -41,22 +61,105 @@ A student is working on the following problem and has requested a hint.
 ${sourceCode || "(No code written yet)"}
 
 CRITICAL RULES:
-1. NEVER provide direct code solutions, full functions, or complete snippets. The student must write the code themselves.
-2. Provide 2-3 progressive, conceptual bullet points:
-   - Hint 1: What to observe about the data structure or mathematical property.
-   - Hint 2: An algorithmic direction (e.g. hash map lookup, two-pointer, dynamic programming transition).
-   - Hint 3: A potential edge case or boundary to be careful about.
-3. Keep the response concise, encouraging, and clear.`;
+1. NEVER output direct code solutions, full functions, or complete snippets. The student MUST learn by writing the code themselves.
+2. Structure guidance into precisely 3 sequential, progressive tiers:
+   - Tier 1 (Observation & Invariants): What to observe about the input data structure, constraints, mathematical symmetries, or brute force limits. Do NOT name the specific data structure yet.
+   - Tier 2 (Algorithmic Strategy): Recommend the optimal pattern/technique (e.g. Two-Pointers, Hash Map lookup, Sliding Window, Monotonic Stack, Dynamic Programming) and explain WHY it fits the constraints.
+   - Tier 3 (Edge Cases & Structural Logic): Highlight critical corner cases (e.g. negative values, duplicates, empty inputs, overflow) and describe the logical flow/pseudo-steps without giving direct syntax.
+
+Respond STRICTLY with a valid JSON array of 3 objects conforming to this schema:
+[
+  {
+    "tier": 1,
+    "title": "Observation & Invariants",
+    "badge": "Core Observation",
+    "focus": "What to observe about input properties and mathematical invariants",
+    "content": "Detailed pedagogical explanation guiding their intuition...",
+    "keyTakeaway": "1-sentence golden rule or question for the student to ask themselves"
+  },
+  {
+    "tier": 2,
+    "title": "Algorithmic Strategy",
+    "badge": "Optimal Pattern",
+    "focus": "Recommended pattern and complexity trade-offs",
+    "content": "Explanation of the strategic data structure and approach...",
+    "keyTakeaway": "1-sentence summary of the optimal algorithm direction"
+  },
+  {
+    "tier": 3,
+    "title": "Edge Cases & Structural Logic",
+    "badge": "Edge Cases & Flow",
+    "focus": "Tricky inputs and pseudo-steps",
+    "content": "Breakdown of boundaries and sequential execution logic...",
+    "keyTakeaway": "1-sentence checklist before running test cases"
+  }
+]`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
       config: {
-        temperature: 0.3,
+        responseMimeType: "application/json",
+        temperature: 0.2
       }
     });
 
-    return response.text?.trim() || "Consider analyzing input constraints and testing edge cases with an alternative data structure.";
+    const raw = response.text?.trim() || "[]";
+    try {
+      const parsed: TieredHintItem[] = JSON.parse(raw);
+      return {
+        problemId: problem.id.toString(),
+        problemTitle: problem.title,
+        tiers: Array.isArray(parsed) && parsed.length >= 3 ? parsed : this.getDefaultTiers(problem.title)
+      };
+    } catch {
+      return {
+        problemId: problem.id.toString(),
+        problemTitle: problem.title,
+        tiers: this.getDefaultTiers(problem.title)
+      };
+    }
+  }
+
+  private static getDefaultTiers(title: string): TieredHintItem[] {
+    return [
+      {
+        tier: 1,
+        title: "Observation & Invariants",
+        badge: "Core Observation",
+        focus: "Problem constraints & input behavior",
+        content: `Examine the constraints and input size for "${title}". Analyze how the number of operations scales if you examine every possible combination.`,
+        keyTakeaway: "Identify whether brute-force quadratic complexity will exceed the 2000ms time limit."
+      },
+      {
+        tier: 2,
+        title: "Algorithmic Strategy",
+        badge: "Optimal Pattern",
+        focus: "Target data structure & complexity",
+        content: "Look for a data structure (such as a hash table, two-pointer window, or sorting) that reduces repeated inner scans into fast O(1) or O(log N) operations.",
+        keyTakeaway: "Trade minimal additional memory space to achieve linear or near-linear runtime."
+      },
+      {
+        tier: 3,
+        title: "Edge Cases & Structural Logic",
+        badge: "Edge Cases & Flow",
+        focus: "Corner cases & boundary handling",
+        content: "Consider empty inputs, single element edge cases, duplicate values, and negative numbers before finalizing your solution loop.",
+        keyTakeaway: "Validate the exact order of element insertion vs lookup to avoid self-matching."
+      }
+    ];
+  }
+
+  /**
+   * Generates progressive, pedagogical hints for the user's current code workspace without spoiling the solution.
+   */
+  static async generateHint(problemId: string, sourceCode: string, language: string): Promise<string> {
+    try {
+      const tiered = await this.generateTieredHints(problemId, sourceCode, language);
+      return tiered.tiers.map((t) => `**Tier ${t.tier} (${t.title})**:\n${t.content}\n*Key Takeaway: ${t.keyTakeaway}*`).join("\n\n");
+    } catch {
+      return "Consider analyzing input constraints and testing edge cases with an alternative data structure.";
+    }
   }
 
   /**

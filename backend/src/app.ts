@@ -620,6 +620,48 @@ app.post("/api/v1/problems/:id/hint", async (req, res): Promise<void> => {
   }
 });
 
+app.post("/api/v1/problems/:id/tiered-hints", async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { sourceCode, language } = req.body;
+    const data = await AiService.generateTieredHints(id, sourceCode, language);
+    res.status(200).json({ success: true, ...data });
+  } catch (err: any) {
+    console.error("AI Tiered Hints Error:", err);
+    res.status(200).json({
+      success: false,
+      problemId: req.params.id,
+      problemTitle: "Problem",
+      tiers: [
+        {
+          tier: 1,
+          title: "Observation & Invariants",
+          badge: "Core Observation",
+          focus: "Problem constraints & input behavior",
+          content: "Examine the constraints and input size. Analyze how the number of operations scales if you examine every possible combination.",
+          keyTakeaway: "Identify whether brute-force quadratic complexity will exceed the 2000ms time limit."
+        },
+        {
+          tier: 2,
+          title: "Algorithmic Strategy",
+          badge: "Optimal Pattern",
+          focus: "Target data structure & complexity",
+          content: "Look for a data structure (such as a hash table, two-pointer window, or sorting) that reduces repeated inner scans into fast O(1) or O(log N) operations.",
+          keyTakeaway: "Trade minimal additional memory space to achieve linear or near-linear runtime."
+        },
+        {
+          tier: 3,
+          title: "Edge Cases & Structural Logic",
+          badge: "Edge Cases & Flow",
+          focus: "Corner cases & boundary handling",
+          content: "Consider empty inputs, single element edge cases, duplicate values, and negative numbers before finalizing your solution loop.",
+          keyTakeaway: "Validate the exact order of element insertion vs lookup to avoid self-matching."
+        }
+      ]
+    });
+  }
+});
+
 app.post("/api/v1/problems/:id/verdict", async (req, res): Promise<void> => {
   try {
     const { id } = req.params;

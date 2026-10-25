@@ -6,7 +6,28 @@ import { api } from "@/lib/api";
 import Editor from "@monaco-editor/react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Play, Send, Loader2, Code2, Plus, HelpCircle, Sparkles, X, CheckCircle2, AlertTriangle } from "lucide-react";
+import {
+  Play,
+  Send,
+  Loader2,
+  Code2,
+  Plus,
+  HelpCircle,
+  Sparkles,
+  X,
+  CheckCircle2,
+  AlertTriangle,
+  Lightbulb,
+  Lock,
+  Unlock,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  GraduationCap,
+  ArrowRight,
+  ShieldCheck
+} from "lucide-react";
+import { TieredHintItem } from "@/types";
 
 interface ProblemDetail {
   id: string; title: string; statement: string; inputFormat: string; outputFormat: string; constraintsText: string; difficulty: string; inputTemplate: string;
@@ -44,8 +65,10 @@ export default function ProblemWorkspaceCanvas() {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hintLoading, setHintLoading] = useState(false);
+  const [tieredHints, setTieredHints] = useState<TieredHintItem[] | null>(null);
+  const [unlockedTier, setUnlockedTier] = useState<number>(1);
+  const [showTieredHints, setShowTieredHints] = useState<boolean>(false);
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiHint, setAiHint] = useState<string | null>(null);
   const [aiVerdict, setAiVerdict] = useState<{ time: string; space: string; summary: string } | null>(null);
   const activeTheme = "vs-dark";
   const [activeCaseIdx, setActiveCaseIdx] = useState(0);
@@ -94,19 +117,25 @@ export default function ProblemWorkspaceCanvas() {
     return () => { document.removeEventListener("mousemove", handleMouseMove); document.removeEventListener("mouseup", handleMouseUp); };
   }, []);
 
-  const getHint = async () => {
+  const getTieredHints = async (forceRefresh = false) => {
     if (!problem || hintLoading) return;
     setHintLoading(true);
-    setAiHint(null);
+    setShowTieredHints(true);
     try {
-      const res = await api.post(`/problems/${problem.id}/hint`, { sourceCode: editorCode, language: selectedLang });
-      if (res.data?.success && res.data.hint) {
-        setAiHint(res.data.hint);
-      } else {
-        setAiHint(res.data?.hint || "Consider breaking down the challenge into smaller invariants and edge cases.");
+      const res = await api.post(`/problems/${problem.id}/tiered-hints`, {
+        sourceCode: editorCode,
+        language: selectedLang
+      });
+      if (res.data?.success && Array.isArray(res.data.tiers)) {
+        setTieredHints(res.data.tiers);
+        if (forceRefresh) {
+          setUnlockedTier(prev => Math.max(prev, 1));
+        } else if (!tieredHints) {
+          setUnlockedTier(1);
+        }
       }
-    } catch {
-      setAiHint("Consider analyzing input constraints and testing edge cases with an alternative data structure.");
+    } catch (err) {
+      console.error("Failed to fetch tiered hints:", err);
     } finally {
       setHintLoading(false);
     }
@@ -204,21 +233,182 @@ export default function ProblemWorkspaceCanvas() {
           </ReactMarkdown>
         </div>
 
-        {aiHint && (
-          <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-200 font-sans leading-relaxed relative">
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-amber-500/20">
-              <span className="font-bold uppercase tracking-wider text-[10px] text-amber-400 flex items-center gap-1.5 font-mono">
-                <HelpCircle className="h-3.5 w-3.5" /> AI Pedagogical Hint
-              </span>
-              <button onClick={() => setAiHint(null)} className="text-amber-400/70 hover:text-amber-200 cursor-pointer">
-                <X className="h-3.5 w-3.5" />
-              </button>
+        {/* 💡 AI TIERED HINT PROGRESSIVE SCAFFOLDING */}
+        {showTieredHints && tieredHints && (
+          <div className="p-4 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-amber-950/20 via-zinc-900/80 to-zinc-950/90 text-xs font-sans space-y-4 shadow-xl shadow-amber-950/10">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-amber-500/20">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                  <Lightbulb className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-amber-200 text-xs tracking-wide flex items-center gap-1.5">
+                    Progressive AI Scaffolding
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Tier {unlockedTier} of 3 Unlocked
+                    </span>
+                  </h3>
+                  <p className="text-[10px] text-zinc-400">Socratic step-by-step guidance tailored to your code</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => getTieredHints(true)}
+                  disabled={hintLoading}
+                  title="Re-analyze based on current editor code"
+                  className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 cursor-pointer transition-colors"
+                >
+                  <RefreshCw className={`h-3 w-3 ${hintLoading ? "animate-spin" : ""}`} />
+                  Re-evaluate
+                </button>
+                <button
+                  onClick={() => setShowTieredHints(false)}
+                  className="p-1 text-zinc-400 hover:text-zinc-200 cursor-pointer rounded hover:bg-zinc-800"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
-            <div className="prose prose-invert prose-xs text-amber-100 max-w-none whitespace-pre-wrap font-sans">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiHint}</ReactMarkdown>
+
+            {/* Progress Bar */}
+            <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-amber-500 via-sky-500 to-purple-500 h-full transition-all duration-300 rounded-full"
+                style={{ width: `${(unlockedTier / 3) * 100}%` }}
+              />
             </div>
+
+            {/* TIER 1: Observation & Invariants */}
+            {tieredHints[0] && (
+              <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-950/20 text-zinc-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Tier 1: {tieredHints[0].badge}
+                    </span>
+                    <span className="font-semibold text-xs text-white">{tieredHints[0].title}</span>
+                  </div>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                </div>
+                <p className="text-[11px] text-zinc-400 italic">{tieredHints[0].focus}</p>
+                <div className="prose prose-invert prose-xs text-zinc-200 max-w-none leading-relaxed">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{tieredHints[0].content}</ReactMarkdown>
+                </div>
+                {tieredHints[0].keyTakeaway && (
+                  <div className="mt-2.5 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-amber-200">
+                    <Lightbulb className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <p className="text-[11px] leading-snug"><strong className="text-amber-300">Observation Rule:</strong> {tieredHints[0].keyTakeaway}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TIER 2: Algorithmic Strategy */}
+            {tieredHints[1] && (
+              unlockedTier >= 2 ? (
+                <div className="p-3.5 rounded-xl border border-sky-500/30 bg-sky-950/20 text-zinc-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                        Tier 2: {tieredHints[1].badge}
+                      </span>
+                      <span className="font-semibold text-xs text-white">{tieredHints[1].title}</span>
+                    </div>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                  </div>
+                  <p className="text-[11px] text-zinc-400 italic">{tieredHints[1].focus}</p>
+                  <div className="prose prose-invert prose-xs text-zinc-200 max-w-none leading-relaxed">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{tieredHints[1].content}</ReactMarkdown>
+                  </div>
+                  {tieredHints[1].keyTakeaway && (
+                    <div className="mt-2.5 p-2 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-start gap-2 text-sky-200">
+                      <Sparkles className="h-3.5 w-3.5 text-sky-400 shrink-0 mt-0.5" />
+                      <p className="text-[11px] leading-snug"><strong className="text-sky-300">Optimal Strategy:</strong> {tieredHints[1].keyTakeaway}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/60 backdrop-blur-sm flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+                      <Lock className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-zinc-300">Tier 2: Algorithmic Strategy</h4>
+                      <p className="text-[10px] text-zinc-500">Optimal data structures & complexity trade-offs</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setUnlockedTier(2)}
+                    className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-semibold bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition-all cursor-pointer"
+                  >
+                    <Unlock className="h-3 w-3" /> Unlock Tier 2
+                  </button>
+                </div>
+              )
+            )}
+
+            {/* TIER 3: Edge Cases & Structural Logic */}
+            {tieredHints[2] && (
+              unlockedTier >= 3 ? (
+                <div className="p-3.5 rounded-xl border border-purple-500/30 bg-purple-950/20 text-zinc-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        Tier 3: {tieredHints[2].badge}
+                      </span>
+                      <span className="font-semibold text-xs text-white">{tieredHints[2].title}</span>
+                    </div>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                  </div>
+                  <p className="text-[11px] text-zinc-400 italic">{tieredHints[2].focus}</p>
+                  <div className="prose prose-invert prose-xs text-zinc-200 max-w-none leading-relaxed">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{tieredHints[2].content}</ReactMarkdown>
+                  </div>
+                  {tieredHints[2].keyTakeaway && (
+                    <div className="mt-2.5 p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-start gap-2 text-purple-200">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
+                      <p className="text-[11px] leading-snug"><strong className="text-purple-300">Edge Case Checklist:</strong> {tieredHints[2].keyTakeaway}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/60 backdrop-blur-sm flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+                      <Lock className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-zinc-300">Tier 3: Edge Cases & Structural Logic</h4>
+                      <p className="text-[10px] text-zinc-500">Corner cases, boundaries & pseudo-steps</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setUnlockedTier(3)}
+                    disabled={unlockedTier < 2}
+                    className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-semibold transition-all ${
+                      unlockedTier < 2
+                        ? "bg-zinc-800/80 text-zinc-600 border border-zinc-800 cursor-not-allowed"
+                        : "bg-purple-600 hover:bg-purple-500 text-white shadow-sm cursor-pointer"
+                    }`}
+                  >
+                    <Unlock className="h-3 w-3" /> {unlockedTier < 2 ? "Unlock Tier 2 First" : "Unlock Tier 3 (Final)"}
+                  </button>
+                </div>
+              )
+            )}
           </div>
         )}
+
+        {/* Loading state if hints are currently generating */}
+        {hintLoading && !tieredHints && (
+          <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-950/20 text-xs text-amber-200 flex items-center gap-3">
+            <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+            <span>Analyzing problem constraints and student code with Gemini...</span>
+          </div>
+        )}
+
         {aiVerdict && (
           <div className="p-4 rounded-xl border border-purple-500/30 bg-purple-500/10 space-y-2 text-xs relative font-sans">
             <div className="flex items-center justify-between pb-2 border-b border-purple-500/20">
@@ -262,12 +452,26 @@ export default function ProblemWorkspaceCanvas() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={getHint}
+              onClick={() => {
+                if (!tieredHints) {
+                  getTieredHints();
+                } else {
+                  setShowTieredHints(prev => !prev);
+                }
+              }}
               disabled={hintLoading}
-              className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 rounded-lg font-medium cursor-pointer transition-colors"
+              className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 border rounded-lg font-medium cursor-pointer transition-colors ${
+                showTieredHints && tieredHints
+                  ? "border-amber-500 bg-amber-500/20 text-amber-200"
+                  : "border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+              }`}
             >
-              {hintLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" /> : <HelpCircle className="h-3.5 w-3.5 text-amber-400" />}
-              Get Hint
+              {hintLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" />
+              ) : (
+                <Lightbulb className="h-3.5 w-3.5 text-amber-400" />
+              )}
+              {tieredHints ? `Hints (${unlockedTier}/3)` : "Tiered Hints"}
             </button>
             <button
               onClick={askAI}

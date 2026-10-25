@@ -39,3 +39,18 @@ export interface AiFeedback {
   spaceComplexity: string;
   createdAt: string;
 }
+
+export interface TieredHintItem {
+  tier: number;
+  title: string;
+  badge: string;
+  focus: string;
+  content: string;
+  keyTakeaway: string;
+}
+
+export interface TieredHintsResponse {
+  problemId: string;
+  problemTitle: string;
+  tiers: TieredHintItem[];
+}
