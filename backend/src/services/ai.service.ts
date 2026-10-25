@@ -95,24 +95,26 @@ Respond STRICTLY with a valid JSON array of 3 objects conforming to this schema:
   }
 ]`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.2
-      }
-    });
-
-    const raw = response.text?.trim() || "[]";
     try {
+      const ai = getGenAI();
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.2
+        }
+      });
+
+      const raw = response.text?.trim() || "[]";
       const parsed: TieredHintItem[] = JSON.parse(raw);
       return {
         problemId: problem.id.toString(),
         problemTitle: problem.title,
         tiers: Array.isArray(parsed) && parsed.length >= 3 ? parsed : this.getDefaultTiers(problem.title)
       };
-    } catch {
+    } catch (err: any) {
+      console.warn("Gemini Tiered Hints fallback used:", err.message);
       return {
         problemId: problem.id.toString(),
         problemTitle: problem.title,
@@ -170,8 +172,6 @@ Respond STRICTLY with a valid JSON array of 3 objects conforming to this schema:
     sourceCode: string,
     language: string
   ): Promise<{ timeComplexity: string; spaceComplexity: string; analysis: string }> {
-    const ai = getGenAI();
-
     const problem = await prisma.problem.findFirst({
       where: {
         OR: [
@@ -197,24 +197,26 @@ Respond STRICTLY with a valid JSON object matching this schema:
   "analysis": "1-2 sentence concise summary explaining the dominant operations and whether optimization is possible."
 }`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.2,
-      }
-    });
-
-    const raw = response.text?.trim() || "{}";
     try {
+      const ai = getGenAI();
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.2,
+        }
+      });
+
+      const raw = response.text?.trim() || "{}";
       const parsed = JSON.parse(raw);
       return {
         timeComplexity: parsed.timeComplexity || "O(N)",
         spaceComplexity: parsed.spaceComplexity || "O(1)",
         analysis: parsed.analysis || "Linear scan analyzing input elements."
       };
-    } catch {
+    } catch (err: any) {
+      console.warn("Gemini Complexity Analysis fallback used:", err.message);
       return {
         timeComplexity: "O(N)",
         spaceComplexity: "O(1)",
@@ -361,17 +363,18 @@ Respond STRICTLY with a valid JSON object matching this schema:
   "suggestedInvariant": "1-sentence golden rule or invariant for the student to keep in mind"
 }`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.2
-      }
-    });
-
-    const raw = response.text?.trim() || "{}";
     try {
+      const ai = getGenAI();
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.2
+        }
+      });
+
+      const raw = response.text?.trim() || "{}";
       const parsed = JSON.parse(raw);
       return {
         rootCause: parsed.rootCause || "The logic diverged from the expected invariants on this input.",
@@ -379,12 +382,16 @@ Respond STRICTLY with a valid JSON object matching this schema:
         howToFix: parsed.howToFix || "Review your loop bounds and verify corner cases such as duplicates, zeroes, and negative numbers.",
         suggestedInvariant: parsed.suggestedInvariant || "Ensure each element is checked against the target relationship exactly once."
       };
-    } catch {
+    } catch (err: any) {
+      console.warn("Gemini failure diagnosis fallback used:", err.message);
+      const isError = failureContext.verdict === "ERROR" || !!failureContext.error;
       return {
-        rootCause: "The algorithm did not satisfy all constraints on this test case.",
-        traceExplanation: `Received output: ${failureContext.actualOutput}, expected: ${failureContext.expectedOutput}`,
-        howToFix: "Consider tracking previously seen elements or adjusting pointer boundaries to handle edge cases.",
-        suggestedInvariant: "Validate boundary conditions before running your main loop."
+        rootCause: isError
+          ? `Runtime execution error: ${failureContext.error || "Exception during execution"}. Possible out-of-bounds indexing, unhandled null reference, or type incompatibility.`
+          : `Output mismatch: Received "${failureContext.actualOutput}", but problem expected "${failureContext.expectedOutput}". Your algorithm evaluated this input combination differently than expected.`,
+        traceExplanation: `When evaluated on input: ${failureContext.input.slice(0, 150)}, the solution evaluated to ${failureContext.actualOutput || "no return value"}. This indicates an off-by-one or condition branch misfire.`,
+        howToFix: "1. Trace your loop variables on this exact input step-by-step.\n2. Verify that your data structure stores the correct keys/values.\n3. Ensure boundary conditions (such as 0, negative values, or duplicate elements) are properly handled.",
+        suggestedInvariant: "Verify that state mutations inside loops preserve the problem's invariant on every iteration."
       };
     }
   }
