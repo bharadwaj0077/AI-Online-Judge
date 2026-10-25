@@ -25,6 +25,10 @@ import {
   RotateCcw,
   Sparkles,
   ExternalLink,
+  Plus,
+  X,
+  FileCode,
+  Check,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { getArenaSocket } from "@/lib/socket";
@@ -79,6 +83,25 @@ interface RefereeDecision {
   timestamp: number;
 }
 
+interface ArenaTestCaseItem {
+  id: number;
+  label: string;
+  input: string;
+  expectedOutput: string;
+  actualOutput: string;
+  stdout: string;
+  error: string | null;
+  status: "PENDING" | "ACCEPTED" | "WRONG_ANSWER" | "ERROR";
+  isCustom?: boolean;
+}
+
+const DEFAULT_TEMPLATES: Record<string, string> = {
+  python3: "class Solution:\n    def solve(self, *args):\n        # Write your code here\n        pass",
+  javascript: "class Solution {\n    solve(...args) {\n        // Write your code here\n    }\n}",
+  cpp17: "#include <vector>\n#include <string>\nusing namespace std;\n\nclass Solution {\npublic:\n    void solve() {\n        // Write your code here\n    }\n};",
+  java17: "import java.util.*;\n\nclass Solution {\n    public void solve() {\n        // Write your code here\n    }\n}"
+};
+
 export default function ArenaLiveBattlePage() {
   const params = useParams();
   const router = useRouter();
@@ -88,9 +111,13 @@ export default function ArenaLiveBattlePage() {
   const [matchData, setMatchData] = useState<any | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Match State
-  const [editorCode, setEditorCode] = useState<string>("");
+  // Multi-Language Code Management
   const [selectedLang, setSelectedLang] = useState<string>("python3");
+  const [editorCode, setEditorCode] = useState<string>(DEFAULT_TEMPLATES.python3);
+  const [templatesMap, setTemplatesMap] = useState<Record<string, string>>(DEFAULT_TEMPLATES);
+  const [codeByLang, setCodeByLang] = useState<Record<string, string>>({});
+
+  // Match State
   const [remainingSec, setRemainingSec] = useState<number>(600);
   const [isConcluded, setIsConcluded] = useState<boolean>(false);
   const [refereeDecision, setRefereeDecision] = useState<RefereeDecision | null>(null);
@@ -116,12 +143,21 @@ export default function ArenaLiveBattlePage() {
 
   // Navigation & Tabs
   const [leftTab, setLeftTab] = useState<"problem" | "hints" | "anticheat">("problem");
-  const [consoleTab, setConsoleTab] = useState<"tests" | "result">("tests");
+  const [consoleTab, setConsoleTab] = useState<"testcase" | "result" | "submission">("testcase");
 
-  // Code Execution
+  // Test Cases Management
+  const [testCases, setTestCases] = useState<ArenaTestCaseItem[]>([
+    { id: 1, label: "Case 1", input: "[2,7,11,15], 9", expectedOutput: "[0,1]", actualOutput: "", stdout: "", error: null, status: "PENDING" },
+    { id: 2, label: "Case 2", input: "[3,2,4], 6", expectedOutput: "[1,2]", actualOutput: "", stdout: "", error: null, status: "PENDING" }
+  ]);
+  const [activeCaseIdx, setActiveCaseIdx] = useState<number>(0);
+
+  // Code Execution & AI Diagnosis
   const [executing, setExecuting] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [sampleOutputs, setSampleOutputs] = useState<any[]>([]);
+  const [diagnosing, setDiagnosing] = useState<boolean>(false);
+  const [diagnosis, setDiagnosis] = useState<any | null>(null);
+
   const [myVerdict, setMyVerdict] = useState<{
     verdict: string;
     passedCases: number;
@@ -131,6 +167,39 @@ export default function ArenaLiveBattlePage() {
   } | null>(null);
 
   const keystrokeDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Helper to initialize problem templates & test cases
+  const applyProblemData = (prob: any, initialCodeOverride?: string) => {
+    if (!prob) return;
+
+    let parsedTmpl: Record<string, string> = { ...DEFAULT_TEMPLATES };
+    if (prob.templates) {
+      parsedTmpl = { ...DEFAULT_TEMPLATES, ...prob.templates };
+    }
+    setTemplatesMap(parsedTmpl);
+
+    if (initialCodeOverride) {
+      setEditorCode(initialCodeOverride);
+    } else {
+      const codeForLang = parsedTmpl[selectedLang] || prob.starterCode || DEFAULT_TEMPLATES[selectedLang];
+      setEditorCode(codeForLang);
+    }
+
+    if (prob.testCases && Array.isArray(prob.testCases) && prob.testCases.length > 0) {
+      const parsed: ArenaTestCaseItem[] = prob.testCases.map((tc: any, idx: number) => ({
+        id: idx + 1,
+        label: `Case ${idx + 1}`,
+        input: tc.input || "",
+        expectedOutput: tc.expectedOutput || "",
+        actualOutput: "",
+        stdout: "",
+        error: null,
+        status: "PENDING"
+      }));
+      setTestCases(parsed);
+      setActiveCaseIdx(0);
+    }
+  };
 
   useEffect(() => {
     let tabId = sessionStorage.getItem("arena_pilot_id");
@@ -164,7 +233,7 @@ export default function ArenaLiveBattlePage() {
     // Listen for match state initialization
     socket.on("arena:match_start", (data: any) => {
       setMatchData(data);
-      if (data.problem?.starterCode) setEditorCode(data.problem.starterCode);
+      applyProblemData(data.problem, data.problem?.starterCode);
       setRemainingSec(data.durationSec || 600);
       setLoading(false);
     });
@@ -175,8 +244,7 @@ export default function ArenaLiveBattlePage() {
       const myPlayer = isP1 ? data.player1 : data.player2;
       const opPlayer = isP1 ? data.player2 : data.player1;
 
-      if (myPlayer?.code) setEditorCode(myPlayer.code);
-      else if (data.problem?.starterCode) setEditorCode(data.problem.starterCode);
+      applyProblemData(data.problem, myPlayer?.code);
 
       if (myPlayer?.warnings) setAntiCheatWarnings(myPlayer.warnings);
 
@@ -208,8 +276,8 @@ export default function ArenaLiveBattlePage() {
       }));
     });
 
-    socket.on("arena:opponent_ran_tests", (data: any) => {
-      setOpponentActionToast("Opponent executed sample test cases...");
+    socket.on("arena:opponent_ran_tests", () => {
+      setOpponentActionToast("Opponent executed test cases...");
       setTimeout(() => setOpponentActionToast(null), 3500);
     });
 
@@ -281,6 +349,33 @@ export default function ArenaLiveBattlePage() {
     };
   }, [matchId]);
 
+  // Language Change Handler (Preserves code and loads corresponding language template)
+  const getEditorLanguageType = (lang: string) => {
+    if (lang === "cpp17" || lang.includes("cpp")) return "cpp";
+    if (lang === "javascript" || lang.includes("js")) return "javascript";
+    if (lang === "java17" || lang.includes("java")) return "java";
+    return "python";
+  };
+
+  const handleLanguageChange = (newLang: string) => {
+    // Save current code for current language
+    setCodeByLang((prev) => ({ ...prev, [selectedLang]: editorCode }));
+    setSelectedLang(newLang);
+
+    // Retrieve previous code or template for new language
+    const nextCode = codeByLang[newLang] || templatesMap[newLang] || DEFAULT_TEMPLATES[newLang] || "";
+    setEditorCode(nextCode);
+
+    if (user) {
+      const socket = getArenaSocket();
+      socket.emit("arena:code_keystroke", {
+        matchId,
+        userId: user.id,
+        code: nextCode,
+      });
+    }
+  };
+
   // Handle Keystrokes & Live Telemetry
   const handleEditorChange = (value: string | undefined) => {
     const code = value || "";
@@ -317,11 +412,59 @@ export default function ArenaLiveBattlePage() {
     });
   };
 
-  // Run Sample Tests
+  // Test Case Management: Add Custom Case
+  const handleAddCustomTestCase = () => {
+    if (testCases.length >= 5) return;
+    const nextId = testCases.reduce((max, c) => Math.max(max, c.id), 0) + 1;
+    const blueprint = testCases[0];
+    const newCase: ArenaTestCaseItem = {
+      id: nextId,
+      label: `Case ${nextId}`,
+      input: blueprint ? blueprint.input : "",
+      expectedOutput: blueprint ? blueprint.expectedOutput : "Run to verify",
+      actualOutput: "",
+      stdout: "",
+      error: null,
+      status: "PENDING",
+      isCustom: true
+    };
+    setTestCases([...testCases, newCase]);
+    setActiveCaseIdx(testCases.length);
+  };
+
+  // Test Case Management: Remove Case
+  const handleRemoveTestCase = (id: number) => {
+    if (testCases.length <= 1) return;
+    const filtered = testCases.filter((tc) => tc.id !== id).map((tc, idx) => ({
+      ...tc,
+      label: `Case ${idx + 1}`
+    }));
+    setTestCases(filtered);
+    setActiveCaseIdx(0);
+  };
+
+  // Test Case Management: Edit Active Case Input
+  const handleInputDataChange = (value: string) => {
+    setTestCases((prev) =>
+      prev.map((tc, idx) =>
+        idx === activeCaseIdx
+          ? { ...tc, input: value, status: "PENDING", actualOutput: "", stdout: "", error: null }
+          : tc
+      )
+    );
+  };
+
+  // Run Code Against All Test Cases
   const handleRunCode = async () => {
     if (!matchData?.problem?.id || executing) return;
     setExecuting(true);
-    setConsoleTab("tests");
+    setConsoleTab("result");
+    setDiagnosis(null);
+
+    // Mark test cases as evaluating
+    setTestCases((prev) =>
+      prev.map((tc) => ({ ...tc, status: "PENDING", actualOutput: "Evaluating...", stdout: "", error: null }))
+    );
 
     const socket = getArenaSocket();
     if (user) {
@@ -333,29 +476,67 @@ export default function ArenaLiveBattlePage() {
       });
     }
 
-    try {
-      // Run code against problem's sample test cases
-      const res = await api.post("/judge/run", {
-        sourceCode: editorCode,
-        language: selectedLang,
-        problemId: matchData.problem.id,
-      });
+    let firstFailedIndex = -1;
+    const evaluatedList = await Promise.all(
+      testCases.map(async (tc, index) => {
+        try {
+          const res = await api.post("/judge/run", {
+            sourceCode: editorCode,
+            language: selectedLang,
+            customInput: tc.input,
+            problemId: matchData.problem.id
+          });
 
-      if (res.data?.success) {
-        setSampleOutputs(res.data.results || []);
-      }
-    } catch {
-      // Error handling
-    } finally {
-      setExecuting(false);
+          const stdout = (res.data?.stdout || "").trim();
+          const actualOutput = (res.data?.output || "").trim();
+          const expected = (res.data?.expected || tc.expectedOutput || "").trim();
+          const error = res.data?.error || null;
+
+          let status: "ACCEPTED" | "WRONG_ANSWER" | "ERROR" = "ACCEPTED";
+          if (error) {
+            status = "ERROR";
+          } else if (!actualOutput || actualOutput.toLowerCase().replace(/\s+/g, "") !== expected.toLowerCase().replace(/\s+/g, "")) {
+            status = "WRONG_ANSWER";
+          }
+
+          if (status !== "ACCEPTED" && firstFailedIndex === -1) {
+            firstFailedIndex = index;
+          }
+
+          return {
+            ...tc,
+            stdout,
+            actualOutput: actualOutput || "None",
+            expectedOutput: expected,
+            error,
+            status
+          };
+        } catch (err: any) {
+          if (firstFailedIndex === -1) firstFailedIndex = index;
+          return {
+            ...tc,
+            error: err.message || "Sandbox execution error",
+            status: "ERROR" as const,
+            actualOutput: "Error",
+            stdout: ""
+          };
+        }
+      })
+    );
+
+    setTestCases(evaluatedList);
+    if (firstFailedIndex !== -1) {
+      setActiveCaseIdx(firstFailedIndex);
     }
+    setExecuting(false);
   };
 
   // Submit Solution
   const handleSubmitCode = async () => {
     if (!matchData?.problem?.id || submitting || isConcluded) return;
     setSubmitting(true);
-    setConsoleTab("result");
+    setConsoleTab("submission");
+    setDiagnosis(null);
 
     try {
       const res = await api.post("/judge/submit", {
@@ -393,6 +574,36 @@ export default function ArenaLiveBattlePage() {
     }
   };
 
+  // Ask AI Diagnosis for failing test case
+  const handleDiagnoseFailure = async () => {
+    if (!matchData?.problem?.id || diagnosing) return;
+    setDiagnosing(true);
+    const tc = testCases[activeCaseIdx] || testCases[0];
+    try {
+      const res = await api.post(`/problems/${matchData.problem.id}/diagnose-failure`, {
+        sourceCode: editorCode,
+        language: selectedLang,
+        failureContext: {
+          orderNo: activeCaseIdx + 1,
+          caseType: tc.isCustom ? "Custom" : "Sample",
+          caseIndex: activeCaseIdx + 1,
+          input: tc.input,
+          expectedOutput: tc.expectedOutput,
+          actualOutput: tc.actualOutput,
+          verdict: tc.status,
+          error: tc.error || undefined
+        }
+      });
+      if (res.data?.diagnosis) {
+        setDiagnosis(res.data.diagnosis);
+      }
+    } catch {
+      //
+    } finally {
+      setDiagnosing(false);
+    }
+  };
+
   // Surrender / Forfeit
   const handleSurrender = () => {
     if (window.confirm("Are you sure you want to forfeit this battle? The AI Referee will award victory to your opponent.")) {
@@ -420,6 +631,7 @@ export default function ArenaLiveBattlePage() {
 
   const isBlitz = matchData?.mode === "blitz";
   const isCoop = matchData?.mode === "coop";
+  const currentCase = testCases[activeCaseIdx] || testCases[0];
 
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 font-sans flex flex-col">
@@ -665,21 +877,24 @@ export default function ArenaLiveBattlePage() {
           </div>
         </div>
 
-        {/* Right Pane (7 cols): Monaco Code Editor & Bottom Console */}
+        {/* Right Pane (7 cols): Monaco Code Editor & Full Testcase Console */}
         <div className="lg:col-span-7 flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden bg-[#0c0c0e]">
-          {/* Editor Header Bar */}
+          {/* Editor Header Bar with Multi-Language Switcher */}
           <div className="h-10 border-b border-zinc-800/80 bg-zinc-900/50 px-4 flex items-center justify-between shrink-0 font-mono text-xs">
             <div className="flex items-center gap-3">
-              <span className="text-zinc-400">Language:</span>
+              <span className="text-zinc-400 flex items-center gap-1.5">
+                <FileCode className="w-3.5 h-3.5 text-indigo-400" />
+                Language:
+              </span>
               <select
                 value={selectedLang}
-                onChange={(e) => setSelectedLang(e.target.value)}
-                className="bg-zinc-800 border border-zinc-700 text-zinc-200 rounded px-2 py-0.5 text-xs focus:outline-none focus:border-indigo-500"
+                onChange={(e) => handleLanguageChange(e.target.value)}
+                className="bg-zinc-800 border border-zinc-700 text-zinc-200 font-bold rounded px-2.5 py-1 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
               >
-                <option value="python3">Python 3</option>
-                <option value="cpp17">C++ 17</option>
-                <option value="java17">Java 17</option>
-                <option value="javascript">JavaScript</option>
+                <option value="python3">Python 3.11</option>
+                <option value="javascript">JavaScript (Node 20)</option>
+                <option value="cpp17">C++ 17 (GCC)</option>
+                <option value="java17">Java 17 (OpenJDK)</option>
               </select>
             </div>
 
@@ -692,7 +907,7 @@ export default function ArenaLiveBattlePage() {
           <div className="flex-1 relative">
             <Editor
               height="100%"
-              language={selectedLang === "cpp17" ? "cpp" : selectedLang === "python3" ? "python" : selectedLang}
+              language={getEditorLanguageType(selectedLang)}
               value={editorCode}
               onChange={handleEditorChange}
               onMount={handleEditorDidMount}
@@ -709,85 +924,262 @@ export default function ArenaLiveBattlePage() {
             />
           </div>
 
-          {/* Bottom Console / Output Bar */}
-          <div className="h-48 border-t border-zinc-800/80 bg-zinc-950 flex flex-col shrink-0">
+          {/* ========================================================================= */}
+          {/* FULL TESTCASE CONSOLE & EXECUTION BAR                                      */}
+          {/* ========================================================================= */}
+          <div className="h-64 border-t border-zinc-800/80 bg-zinc-950 flex flex-col shrink-0">
             {/* Console Tab Header */}
-            <div className="h-8 border-b border-zinc-800/80 bg-zinc-900/40 px-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="h-9 border-b border-zinc-800/80 bg-zinc-900/40 px-3 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-1 font-mono text-xs">
                 <button
-                  onClick={() => setConsoleTab("tests")}
-                  className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded transition-colors ${
-                    consoleTab === "tests" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white"
+                  onClick={() => setConsoleTab("testcase")}
+                  className={`px-3 py-1.5 font-bold transition-colors border-b-2 ${
+                    consoleTab === "testcase"
+                      ? "border-indigo-500 text-white bg-zinc-800/60"
+                      : "border-transparent text-zinc-400 hover:text-white"
                   }`}
                 >
-                  Test Results
+                  TestCase
                 </button>
                 <button
                   onClick={() => setConsoleTab("result")}
-                  className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded transition-colors ${
-                    consoleTab === "result" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white"
+                  className={`px-3 py-1.5 font-bold transition-colors border-b-2 flex items-center gap-1.5 ${
+                    consoleTab === "result"
+                      ? "border-indigo-500 text-white bg-zinc-800/60"
+                      : "border-transparent text-zinc-400 hover:text-white"
                   }`}
                 >
-                  Submission Status
+                  <span>Test Results</span>
+                  {testCases.some((t) => t.status !== "PENDING") && (
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        testCases.every((t) => t.status === "ACCEPTED") ? "bg-emerald-400" : "bg-rose-500"
+                      }`}
+                    />
+                  )}
+                </button>
+                <button
+                  onClick={() => setConsoleTab("submission")}
+                  className={`px-3 py-1.5 font-bold transition-colors border-b-2 flex items-center gap-1.5 ${
+                    consoleTab === "submission"
+                      ? "border-indigo-500 text-white bg-zinc-800/60"
+                      : "border-transparent text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  <span>Submission Status</span>
+                  {myVerdict && (
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        myVerdict.verdict === "ACCEPTED" ? "bg-emerald-400" : "bg-rose-500"
+                      }`}
+                    />
+                  )}
                 </button>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons: Run Tests & Submit Solution */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleRunCode}
                   disabled={executing || isConcluded}
-                  className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-200 rounded text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-200 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-zinc-700"
                 >
-                  {executing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-                  Run Tests
+                  {executing ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" /> : <Play className="w-3.5 h-3.5 fill-emerald-400 text-emerald-400" />}
+                  <span>Run Tests</span>
                 </button>
                 <button
                   onClick={handleSubmitCode}
                   disabled={submitting || isConcluded}
-                  className="px-4 py-1 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 disabled:opacity-50 text-white rounded text-xs font-mono font-bold transition-all flex items-center gap-1.5 shadow-md shadow-rose-600/20 cursor-pointer"
+                  className="px-4 py-1 bg-gradient-to-r from-rose-600 via-pink-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1.5 shadow-md shadow-rose-600/20 cursor-pointer"
                 >
-                  {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                  Submit Solution
+                  {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin text-white" /> : <Send className="w-3.5 h-3.5 text-white" />}
+                  <span>Submit Solution</span>
                 </button>
               </div>
             </div>
 
-            {/* Console Body */}
-            <div className="flex-1 p-3 overflow-y-auto font-mono text-xs text-zinc-300">
-              {consoleTab === "tests" && (
-                sampleOutputs.length === 0 ? (
+            {/* Test Case Selector Bar (Pills + Add / Remove) */}
+            <div className="px-3 py-1.5 border-b border-zinc-800/60 bg-zinc-950/40 flex items-center gap-2 select-none overflow-x-auto shrink-0 font-mono text-xs">
+              {testCases.map((tc, idx) => (
+                <button
+                  key={tc.id}
+                  onClick={() => setActiveCaseIdx(idx)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold border flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeCaseIdx === idx
+                      ? "bg-zinc-800 border-zinc-600 text-white shadow-sm"
+                      : "bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+                  }`}
+                >
+                  {tc.status === "ACCEPTED" && <Check className="w-3 h-3 text-emerald-400 stroke-[3]" />}
+                  {tc.status === "WRONG_ANSWER" && <X className="w-3 h-3 text-rose-500 stroke-[3]" />}
+                  {tc.status === "ERROR" && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
+                  <span>{tc.label}</span>
+                  {testCases.length > 1 && (
+                    <X
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveTestCase(tc.id);
+                      }}
+                      className="w-3 h-3 text-zinc-500 hover:text-rose-400 transition-colors ml-0.5 cursor-pointer"
+                    />
+                  )}
+                </button>
+              ))}
+
+              {testCases.length < 5 && (
+                <button
+                  onClick={handleAddCustomTestCase}
+                  className="px-2 py-1 rounded-md border border-dashed border-zinc-700 hover:border-indigo-400 text-zinc-400 hover:text-indigo-300 text-[11px] flex items-center gap-1 transition-all cursor-pointer"
+                  title="Add custom test case"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add Case</span>
+                </button>
+              )}
+            </div>
+
+            {/* Console Content Area */}
+            <div className="flex-1 p-3 overflow-y-auto font-mono text-xs text-zinc-300 space-y-3">
+              {/* TAB 1: TESTCASE INPUT DISPLAY & EDITING */}
+              {consoleTab === "testcase" && (
+                <div className="space-y-2.5">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                      Input ({currentCase.label}):
+                    </span>
+                    <textarea
+                      rows={2}
+                      value={currentCase.input}
+                      onChange={(e) => handleInputDataChange(e.target.value)}
+                      placeholder="Enter test case arguments..."
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {currentCase.expectedOutput && (
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">
+                        Expected Output:
+                      </span>
+                      <pre className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs whitespace-pre-wrap">
+                        {currentCase.expectedOutput}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 2: TEST RESULTS */}
+              {consoleTab === "result" && (
+                currentCase.status === "PENDING" && !currentCase.actualOutput ? (
                   <div className="text-zinc-500 text-center py-6">
-                    Click &quot;Run Tests&quot; to execute your solution against sample test cases.
+                    Click &quot;Run Tests&quot; to execute your solution against test cases.
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {sampleOutputs.map((out, idx) => (
-                      <div key={idx} className="p-2.5 rounded bg-zinc-900 border border-zinc-800 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {out.status === "ACCEPTED" ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          ) : (
-                            <XCircle className="w-4 h-4 text-rose-400" />
-                          )}
-                          <span>Case {idx + 1}: {out.status}</span>
-                        </div>
-                        <div className="text-[11px] text-zinc-400">{out.executionTimeMs || 0}ms</div>
+                  <div className="space-y-3">
+                    {/* Execution Error */}
+                    {currentCase.error && (
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-rose-400 block">
+                          Execution Exception:
+                        </span>
+                        <pre className="bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl p-3 whitespace-pre-wrap leading-relaxed font-mono">
+                          {currentCase.error}
+                        </pre>
                       </div>
-                    ))}
+                    )}
+
+                    {/* Stdout Output */}
+                    {currentCase.stdout && (
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">
+                          Standard Output (Stdout):
+                        </span>
+                        <pre className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-2 text-emerald-400 whitespace-pre-wrap">
+                          {currentCase.stdout}
+                        </pre>
+                      </div>
+                    )}
+
+                    {/* Output vs Expected Side-by-Side */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">
+                          Your Output:
+                        </span>
+                        <pre
+                          className={`rounded-lg p-2 font-bold whitespace-pre-wrap border ${
+                            currentCase.status === "ACCEPTED"
+                              ? "bg-emerald-950/20 border-emerald-900/40 text-emerald-300"
+                              : "bg-rose-950/20 border-rose-900/40 text-rose-300"
+                          }`}
+                        >
+                          {currentCase.actualOutput || "None"}
+                        </pre>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">
+                          Expected Output:
+                        </span>
+                        <pre className="bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-zinc-300 font-bold whitespace-pre-wrap">
+                          {currentCase.expectedOutput || "None"}
+                        </pre>
+                      </div>
+                    </div>
+
+                    {/* ✨ Universal Ask AI Failure Diagnosis Button */}
+                    {(currentCase.status === "WRONG_ANSWER" || currentCase.status === "ERROR") && (
+                      <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-r from-purple-950/40 to-indigo-950/40 border border-purple-500/30 flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                            Need guidance on this test case divergence?
+                          </div>
+                          <div className="text-[10px] text-zinc-400 mt-0.5">
+                            AI will inspect your code logic and explain the root cause.
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={handleDiagnoseFailure}
+                          disabled={diagnosing}
+                          className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-purple-600/30"
+                        >
+                          {diagnosing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                          <span>Ask AI Why It Failed</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Diagnosis Result Card */}
+                    {diagnosis && (
+                      <div className="p-3.5 rounded-xl bg-zinc-900 border border-purple-500/40 space-y-2 text-xs">
+                        <div className="font-bold text-purple-300 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5" /> AI Diagnosis: {diagnosis.rootCause}
+                        </div>
+                        <p className="text-zinc-300 text-[11px] leading-relaxed">{diagnosis.explanation}</p>
+                        {diagnosis.suggestedFixConcept && (
+                          <div className="text-indigo-300 text-[11px]">
+                            💡 Strategic Fix: {diagnosis.suggestedFixConcept}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               )}
 
-              {consoleTab === "result" && (
+              {/* TAB 3: SUBMISSION STATUS */}
+              {consoleTab === "submission" && (
                 !myVerdict ? (
                   <div className="text-zinc-500 text-center py-6">
-                    No submissions recorded yet. Click &quot;Submit Solution&quot; to test all cases.
+                    No submissions recorded yet. Click &quot;Submit Solution&quot; to test against all cases.
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2.5 rounded bg-zinc-900 border border-zinc-800">
-                      <div className="flex items-center gap-2">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800">
+                      <div className="flex items-center gap-2.5">
                         {myVerdict.verdict === "ACCEPTED" ? (
                           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                         ) : (
@@ -797,18 +1189,47 @@ export default function ArenaLiveBattlePage() {
                           <div className={`font-bold ${myVerdict.verdict === "ACCEPTED" ? "text-emerald-400" : "text-rose-400"}`}>
                             {myVerdict.verdict}
                           </div>
-                          <div className="text-[11px] text-zinc-400">
-                            Passed: {myVerdict.passedCases} / {myVerdict.totalCases} test cases
+                          <div className="text-[11px] text-zinc-400 mt-0.5">
+                            Passed: {myVerdict.passedCases} / {myVerdict.totalCases} Total Test Cases
                           </div>
                         </div>
                       </div>
-                      <div className="text-right text-xs text-zinc-400">
+                      <div className="text-right text-xs text-zinc-400 font-mono">
                         {myVerdict.executionTimeMs}ms
                       </div>
                     </div>
 
+                    {/* LeetCode Failing Test Case Inspector */}
+                    {myVerdict.failedCase && (
+                      <div className="p-3 rounded-xl bg-zinc-900 border border-rose-500/30 space-y-2">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-rose-400">
+                          Failed on: {myVerdict.failedCase.caseType} #{myVerdict.failedCase.caseIndex}
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-zinc-500">Input:</span>
+                          <pre className="p-2 rounded bg-zinc-950 border border-zinc-800 text-zinc-300 text-xs">
+                            {myVerdict.failedCase.input}
+                          </pre>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-[10px] text-rose-400">Your Output:</span>
+                            <pre className="p-2 rounded bg-rose-950/20 border border-rose-900/40 text-rose-300 text-xs font-bold">
+                              {myVerdict.failedCase.actualOutput}
+                            </pre>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-emerald-400">Expected:</span>
+                            <pre className="p-2 rounded bg-emerald-950/20 border border-emerald-900/40 text-emerald-300 text-xs font-bold">
+                              {myVerdict.failedCase.expectedOutput}
+                            </pre>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {isBlitz && myVerdict.verdict === "ACCEPTED" && (
-                      <div className="p-2 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold text-center">
+                      <div className="p-2.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold text-center">
                         ⚡ Blitz First Blood Victory achieved! AI Referee evaluating results...
                       </div>
                     )}
