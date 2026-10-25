@@ -55,80 +55,1002 @@ export interface ScorecardReport {
   interviewerVerdict: string;
 }
 
+export const CS_FUNDAMENTALS_PROBLEMS: Record<string, Array<{
+  id: string;
+  title: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  statement: string;
+  constraintsText: string;
+  templates: Record<string, string>;
+  testCases: Array<{ id: string; orderNo: number; input: string; expectedOutput: string; isSample: boolean }>;
+}>> = {
+  os: [
+    {
+      id: "os_bounded_buffer",
+      title: "Thread-Safe Bounded Blocking Queue (Producer-Consumer)",
+      difficulty: "Medium",
+      statement: `### Problem Description
+Implement a thread-safe **Bounded Blocking Queue** that coordinates multiple producer and consumer threads without race conditions, busy-waiting, or deadlocks.
+
+The queue must support:
+- \`BoundedBlockingQueue(capacity: int)\`: Initializes the queue with a maximum capacity.
+- \`enqueue(element: int) -> None\`: Adds an element to the tail of the queue. If the queue is at capacity, the calling thread must block until space becomes available.
+- \`dequeue() -> int\`: Removes and returns the element from the head of the queue. If the queue is empty, the calling thread must block until an element is present.
+- \`size() -> int\`: Returns the current number of elements in the queue.
+
+### Constraints & Requirements
+- Capacity $1 \\le C \\le 10^4$.
+- Must use synchronization primitives (Mutex, Condition Variables, or Semaphores).
+- Must adhere strictly to First-In, First-Out (FIFO) semantics.`,
+      constraintsText: "1 <= capacity <= 10^4. Threads: multiple concurrent producers and consumers. Zero busy-waiting.",
+      templates: {
+        python3: `import threading
+from collections import deque
+
+class BoundedBlockingQueue:
+    def __init__(self, capacity: int):
+        self.capacity = capacity
+        self.queue = deque()
+        self.lock = threading.Lock()
+        self.not_full = threading.Condition(self.lock)
+        self.not_empty = threading.Condition(self.lock)
+
+    def enqueue(self, element: int) -> None:
+        with self.not_full:
+            while len(self.queue) >= self.capacity:
+                self.not_full.wait()
+            self.queue.append(element)
+            self.not_empty.notify()
+
+    def dequeue(self) -> int:
+        with self.not_empty:
+            while len(self.queue) == 0:
+                self.not_empty.wait()
+            val = self.queue.popleft()
+            self.not_full.notify()
+            return val
+
+    def size(self) -> int:
+        with self.lock:
+            return len(self.queue)
+`,
+        javascript: `class BoundedBlockingQueue {
+  constructor(capacity) {
+    this.capacity = capacity;
+    this.queue = [];
+    this.waitEnqueue = [];
+    this.waitDequeue = [];
+  }
+
+  async enqueue(element) {
+    while (this.queue.length >= this.capacity) {
+      await new Promise((resolve) => this.waitEnqueue.push(resolve));
+    }
+    this.queue.push(element);
+    if (this.waitDequeue.length > 0) {
+      const resolve = this.waitDequeue.shift();
+      resolve();
+    }
+  }
+
+  async dequeue() {
+    while (this.queue.length === 0) {
+      await new Promise((resolve) => this.waitDequeue.push(resolve));
+    }
+    const val = this.queue.shift();
+    if (this.waitEnqueue.length > 0) {
+      const resolve = this.waitEnqueue.shift();
+      resolve();
+    }
+    return val;
+  }
+
+  size() {
+    return this.queue.length;
+  }
+}
+`,
+        cpp17: `#include <queue>
+#include <mutex>
+#include <condition_variable>
+
+class BoundedBlockingQueue {
+private:
+    int capacity;
+    std::queue<int> q;
+    std::mutex mtx;
+    std::condition_variable cv_not_full;
+    std::condition_variable cv_not_empty;
+
+public:
+    BoundedBlockingQueue(int cap) : capacity(cap) {}
+
+    void enqueue(int element) {
+        std::unique_lock<std::mutex> lock(mtx);
+        cv_not_full.wait(lock, [this]() { return q.size() < capacity; });
+        q.push(element);
+        cv_not_empty.notify_one();
+    }
+
+    int dequeue() {
+        std::unique_lock<std::mutex> lock(mtx);
+        cv_not_empty.wait(lock, [this]() { return !q.empty(); });
+        int val = q.front();
+        q.pop();
+        cv_not_full.notify_one();
+        return val;
+    }
+
+    int size() {
+        std::lock_guard<std::mutex> lock(mtx);
+        return q.size();
+    }
+};
+`,
+        java17: `import java.util.LinkedList;
+import java.util.Queue;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+
+class BoundedBlockingQueue {
+    private final int capacity;
+    private final Queue<Integer> queue = new LinkedList<>();
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition notFull = lock.newCondition();
+    private final Condition notEmpty = lock.newCondition();
+
+    public BoundedBlockingQueue(int capacity) {
+        this.capacity = capacity;
+    }
+
+    public void enqueue(int element) throws InterruptedException {
+        lock.lock();
+        try {
+            while (queue.size() >= capacity) {
+                notFull.await();
+            }
+            queue.offer(element);
+            notEmpty.signal();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public int dequeue() throws InterruptedException {
+        lock.lock();
+        try {
+            while (queue.isEmpty()) {
+                notEmpty.await();
+            }
+            int val = queue.poll();
+            notFull.signal();
+            return val;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public int size() {
+        lock.lock();
+        try {
+            return queue.size();
+        } finally {
+            lock.unlock();
+        }
+    }
+}
+`
+      },
+      testCases: [
+        {
+          id: "1",
+          orderNo: 1,
+          input: "capacity = 2, operations = [enqueue(1), enqueue(2), dequeue(), enqueue(3), dequeue(), dequeue()]",
+          expectedOutput: "[1, 2, 3]",
+          isSample: true
+        },
+        {
+          id: "2",
+          orderNo: 2,
+          input: "capacity = 3, operations = [enqueue(10), enqueue(20), size(), dequeue(), size()]",
+          expectedOutput: "[2, 10, 1]",
+          isSample: true
+        }
+      ]
+    },
+    {
+      id: "os_lru_page_replacement",
+      title: "LRU Page Replacement Algorithm Simulation",
+      difficulty: "Medium",
+      statement: `### Problem Description
+Simulate the **Least Recently Used (LRU) Page Replacement** policy implemented inside an Operating System's Virtual Memory paging unit.
+
+Given:
+- \`framesCount\`: Maximum number of physical memory page frames available.
+- \`pageReferences\`: An array of page numbers requested sequentially by running processes.
+
+Return an object / tuple with:
+1. \`pageFaults\`: Total number of times a requested page was not currently in physical memory.
+2. \`finalFrames\`: List of page numbers resident in memory frames at the conclusion of the sequence.`,
+      constraintsText: "1 <= framesCount <= 500, 1 <= pageReferences.length <= 10^5",
+      templates: {
+        python3: `from typing import List, Tuple
+
+class Solution:
+    def simulateLRU(self, framesCount: int, pageReferences: List[int]) -> Tuple[int, List[int]]:
+        # Return (page_faults, final_frames)
+        page_faults = 0
+        frames = []
+        return (page_faults, frames)
+`,
+        javascript: `class Solution {
+  simulateLRU(framesCount, pageReferences) {
+    // Return { pageFaults: number, finalFrames: number[] }
+    return { pageFaults: 0, finalFrames: [] };
+  }
+}
+`,
+        cpp17: `#include <vector>
+using namespace std;
+
+class Solution {
+public:
+    pair<int, vector<int>> simulateLRU(int framesCount, const vector<int>& pageReferences) {
+        // Return {page_faults, final_frames}
+        return {0, {}};
+    }
+};
+`,
+        java17: `import java.util.*;
+
+class Solution {
+    public int[] simulateLRU(int framesCount, int[] pageReferences) {
+        // Returns [pageFaults, ...finalFrames]
+        return new int[]{0};
+    }
+}
+`
+      },
+      testCases: [
+        {
+          id: "1",
+          orderNo: 1,
+          input: "framesCount = 3, pageReferences = [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2]",
+          expectedOutput: "pageFaults = 10, finalFrames = [2, 3, 0]",
+          isSample: true
+        },
+        {
+          id: "2",
+          orderNo: 2,
+          input: "framesCount = 4, pageReferences = [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5]",
+          expectedOutput: "pageFaults = 10, finalFrames = [3, 4, 5, 2]",
+          isSample: true
+        }
+      ]
+    }
+  ],
+  cn: [
+    {
+      id: "cn_token_bucket",
+      title: "Token Bucket Rate Limiter for Network Packets",
+      difficulty: "Medium",
+      statement: `### Problem Description
+Implement a high-performance **Token Bucket Rate Limiter** commonly deployed at edge reverse proxies and network packet routers.
+
+The rate limiter operates with:
+- \`capacity\`: Maximum token bursts the bucket can hold.
+- \`refillRatePerSec\`: Number of tokens added per second at a continuous linear rate.
+
+Implement:
+- \`TokenBucket(capacity: float, refillRatePerSec: float)\`
+- \`allowPacket(tokensRequired: float, currentTimestampSec: float) -> bool\`: Computes tokens accumulated since last check, clamps to capacity, and if sufficient tokens exist, deducts them and returns \`true\`; otherwise returns \`false\` without token deduction.`,
+      constraintsText: "1 <= capacity <= 10^6, 0.1 <= refillRatePerSec <= 10^5. Timestamps monotonically non-decreasing.",
+      templates: {
+        python3: `class TokenBucket:
+    def __init__(self, capacity: float, refillRatePerSec: float):
+        self.capacity = capacity
+        self.refillRate = refillRatePerSec
+        self.tokens = capacity
+        self.lastRefill = 0.0
+
+    def allowPacket(self, tokensRequired: float, currentTimestampSec: float) -> bool:
+        # Write your token replenishment and deduction logic here
+        pass
+`,
+        javascript: `class TokenBucket {
+  constructor(capacity, refillRatePerSec) {
+    this.capacity = capacity;
+    this.refillRate = refillRatePerSec;
+    this.tokens = capacity;
+    this.lastRefill = 0.0;
+  }
+
+  allowPacket(tokensRequired, currentTimestampSec) {
+    // Write your token calculation here
+    return false;
+  }
+}
+`,
+        cpp17: `class TokenBucket {
+private:
+    double capacity;
+    double refillRate;
+    double tokens;
+    double lastRefill;
+
+public:
+    TokenBucket(double cap, double rate) : capacity(cap), refillRate(rate), tokens(cap), lastRefill(0.0) {}
+
+    bool allowPacket(double tokensRequired, double currentTimestampSec) {
+        // Implement replenishment and admission control
+        return false;
+    }
+};
+`,
+        java17: `class TokenBucket {
+    private final double capacity;
+    private final double refillRate;
+    private double tokens;
+    private double lastRefill;
+
+    public TokenBucket(double capacity, double refillRate) {
+        this.capacity = capacity;
+        this.refillRate = refillRate;
+        this.tokens = capacity;
+        this.lastRefill = 0.0;
+    }
+
+    public boolean allowPacket(double tokensRequired, double currentTimestampSec) {
+        // Implement rate limiting logic
+        return false;
+    }
+}
+`
+      },
+      testCases: [
+        {
+          id: "1",
+          orderNo: 1,
+          input: "capacity = 5, rate = 2.0/s, packets: [(1, 0.0), (3, 0.0), (2, 0.0), (1, 1.0)]",
+          expectedOutput: "[true, true, false, true]",
+          isSample: true
+        },
+        {
+          id: "2",
+          orderNo: 2,
+          input: "capacity = 10, rate = 5.0/s, packets: [(10, 0.0), (5, 0.5), (5, 1.0)]",
+          expectedOutput: "[true, false, true]",
+          isSample: true
+        }
+      ]
+    },
+    {
+      id: "cn_cidr_subnet",
+      title: "IPv4 CIDR Subnet Calculator & Address Resolver",
+      difficulty: "Easy",
+      statement: `### Problem Description
+Given an IPv4 address with CIDR prefix notation (e.g., \`"192.168.1.130/26"\`), compute the network parameters:
+1. \`networkAddress\`: The base network identifier.
+2. \`broadcastAddress\`: The broadcast address for the subnet.
+3. \`firstUsableHost\`: First host address.
+4. \`lastUsableHost\`: Last host address.
+5. \`usableHostsCount\`: Total usable IP host count ($2^{32 - prefix} - 2$).
+
+Return a JSON object or formatted string with these 5 fields.`,
+      constraintsText: "Valid IPv4 string with prefix 1 <= prefix <= 30.",
+      templates: {
+        python3: `class Solution:
+    def calculateSubnet(self, cidr: str) -> dict:
+        # Return dict with network, broadcast, firstHost, lastHost, usableHosts
+        pass
+`,
+        javascript: `class Solution {
+  calculateSubnet(cidr) {
+    // Return object with network, broadcast, firstHost, lastHost, usableHosts
+    return {};
+  }
+}
+`,
+        cpp17: `#include <string>
+#include <vector>
+using namespace std;
+
+class Solution {
+public:
+    string calculateSubnet(string cidr) {
+        // Return formatted JSON string
+        return "";
+    }
+};
+`,
+        java17: `import java.util.*;
+
+class Solution {
+    public Map<String, Object> calculateSubnet(String cidr) {
+        return new HashMap<>();
+    }
+}
+`
+      },
+      testCases: [
+        {
+          id: "1",
+          orderNo: 1,
+          input: '"192.168.1.130/26"',
+          expectedOutput: '{"network": "192.168.1.128", "broadcast": "192.168.1.191", "firstHost": "192.168.1.129", "lastHost": "192.168.1.190", "usableHosts": 62}',
+          isSample: true
+        },
+        {
+          id: "2",
+          orderNo: 2,
+          input: '"10.0.0.1/24"',
+          expectedOutput: '{"network": "10.0.0.0", "broadcast": "10.0.0.255", "firstHost": "10.0.0.1", "lastHost": "10.0.0.254", "usableHosts": 254}',
+          isSample: true
+        }
+      ]
+    }
+  ],
+  dbms: [
+    {
+      id: "dbms_hash_join",
+      title: "In-Memory Relational Hash Join Engine",
+      difficulty: "Medium",
+      statement: `### Problem Description
+Implement the core query execution operator for an **In-Memory Equi-Hash Join** between two database relation tables:
+\`Table A\` and \`Table B\`.
+
+Given:
+- \`tableA\`: Array of records (dictionaries/objects).
+- \`tableB\`: Array of records.
+- \`joinKeyA\`: Attribute name in Table A.
+- \`joinKeyB\`: Attribute name in Table B.
+
+Return the joined table records. Each joined record combines matching attributes from both relations. Achieve optimal $O(|A| + |B|)$ time complexity using a build-and-probe phase with hash indexing.`,
+      constraintsText: "1 <= |A|, |B| <= 10^5 records. Attribute values are primitives.",
+      templates: {
+        python3: `from typing import List, Dict, Any
+
+class Solution:
+    def hashJoin(self, tableA: List[Dict[str, Any]], tableB: List[Dict[str, Any]], joinKeyA: str, joinKeyB: str) -> List[Dict[str, Any]]:
+        # Phase 1: Build hash index on smaller table
+        # Phase 2: Probe hash index with outer table
+        return []
+`,
+        javascript: `class Solution {
+  hashJoin(tableA, tableB, joinKeyA, joinKeyB) {
+    // Write hash join build & probe phases here
+    return [];
+  }
+}
+`,
+        cpp17: `#include <vector>
+#include <string>
+#include <unordered_map>
+using namespace std;
+
+class Solution {
+public:
+    // Implement hash join
+};
+`,
+        java17: `import java.util.*;
+
+class Solution {
+    public List<Map<String, Object>> hashJoin(List<Map<String, Object>> tableA, List<Map<String, Object>> tableB, String joinKeyA, String joinKeyB) {
+        return new ArrayList<>();
+    }
+}
+`
+      },
+      testCases: [
+        {
+          id: "1",
+          orderNo: 1,
+          input: 'tableA = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}], tableB = [{"userId": 1, "dept": "Eng"}, {"userId": 2, "dept": "Sales"}], joinKeyA = "id", joinKeyB = "userId"',
+          expectedOutput: '[{"id": 1, "name": "Alice", "userId": 1, "dept": "Eng"}, {"id": 2, "name": "Bob", "userId": 2, "dept": "Sales"}]',
+          isSample: true
+        },
+        {
+          id: "2",
+          orderNo: 2,
+          input: 'tableA = [{"id": 1, "dept": "AI"}], tableB = [{"userId": 3, "salary": 150000}], joinKeyA = "id", joinKeyB = "userId"',
+          expectedOutput: "[]",
+          isSample: true
+        }
+      ]
+    },
+    {
+      id: "dbms_two_phase_locking",
+      title: "Strict Two-Phase Locking (2PL) Concurrency Lock Manager",
+      difficulty: "Hard",
+      statement: `### Problem Description
+Implement a **Strict Two-Phase Locking (Strict 2PL)** Lock Manager to guarantee serializable ACID transactions in a DBMS.
+
+Support operations:
+- \`acquireShared(txnId: int, resourceId: str) -> bool\`: Acquires a shared (read) lock. Multiple transactions can hold shared locks simultaneously.
+- \`acquireExclusive(txnId: int, resourceId: str) -> bool\`: Acquires an exclusive (write) lock. No other transaction can hold any lock on the resource.
+- \`commitTransaction(txnId: int) -> None\`: Releases all locks held by transaction \`txnId\` at transaction completion (Strict 2PL phase).`,
+      constraintsText: "Up to 10^4 concurrent transactions and 10^5 resources.",
+      templates: {
+        python3: `class LockManager2PL:
+    def __init__(self):
+        self.shared_locks = {}     # resource -> set of txnIds
+        self.exclusive_locks = {}  # resource -> txnId
+        self.txn_locks = {}        # txnId -> list of (resource, type)
+
+    def acquireShared(self, txnId: int, resourceId: str) -> bool:
+        pass
+
+    def acquireExclusive(self, txnId: int, resourceId: str) -> bool:
+        pass
+
+    def commitTransaction(self, txnId: int) -> None:
+        pass
+`,
+        javascript: `class LockManager2PL {
+  constructor() {
+    this.sharedLocks = new Map();
+    this.exclusiveLocks = new Map();
+    this.txnLocks = new Map();
+  }
+
+  acquireShared(txnId, resourceId) {
+    return false;
+  }
+
+  acquireExclusive(txnId, resourceId) {
+    return false;
+  }
+
+  commitTransaction(txnId) {
+    // Release all locks held by txnId
+  }
+}
+`,
+        cpp17: `#include <string>
+#include <unordered_map>
+#include <unordered_set>
+using namespace std;
+
+class LockManager2PL {
+public:
+    bool acquireShared(int txnId, string resourceId) { return false; }
+    bool acquireExclusive(int txnId, string resourceId) { return false; }
+    void commitTransaction(int txnId) {}
+};
+`,
+        java17: `import java.util.*;
+
+class LockManager2PL {
+    public boolean acquireShared(int txnId, String resourceId) { return false; }
+    public boolean acquireExclusive(int txnId, String resourceId) { return false; }
+    public void commitTransaction(int txnId) {}
+}
+`
+      },
+      testCases: [
+        {
+          id: "1",
+          orderNo: 1,
+          input: 'acquireShared(1, "R1") -> true, acquireShared(2, "R1") -> true, acquireExclusive(3, "R1") -> false, commit(1), commit(2), acquireExclusive(3, "R1") -> true',
+          expectedOutput: "[true, true, false, true]",
+          isSample: true
+        }
+      ]
+    }
+  ],
+  oops: [
+    {
+      id: "oops_parking_lot",
+      title: "Design a Modular Multi-Floor Parking Lot System (SOLID Principles)",
+      difficulty: "Medium",
+      statement: `### Problem Description
+Design a clean, modular **Parking Lot System** adhering strictly to **SOLID Design Principles** and design patterns (Factory, Strategy).
+
+Requirements:
+1. **Vehicle Types**: Supports \`Motorcycle\`, \`Car\`, \`Bus\` with corresponding required spot sizes (\`Compact\`, \`Regular\`, \`Large\`).
+2. **Multi-Floor Architecture**: The lot has $N$ floors, each with varying spot counts.
+3. **Park & Unpark**:
+   - \`park(vehicle) -> Ticket\`: Assigns vehicle to the nearest available compatible spot on the lowest floor.
+   - \`unpark(ticket) -> float\`: Frees spot and calculates fee based on duration and dynamic \`PricingStrategy\` (e.g., flat rate or progressive hourly).
+4. **Capacity Reporting**: \`getFreeSpots(floor: int, spotType: str) -> int\`.`,
+      constraintsText: "Clean object-oriented hierarchy, decoupling, and polymorphism.",
+      templates: {
+        python3: `from enum import Enum
+from typing import Optional, Dict
+
+class VehicleType(Enum):
+    MOTORCYCLE = 1
+    CAR = 2
+    BUS = 3
+
+class Vehicle:
+    def __init__(self, licensePlate: str, vType: VehicleType):
+        self.licensePlate = licensePlate
+        self.vType = vType
+
+class ParkingLot:
+    def __init__(self, floorsCount: int, spotsPerFloor: Dict[str, int]):
+        self.floorsCount = floorsCount
+        self.spotsPerFloor = spotsPerFloor
+
+    def park(self, vehicle: Vehicle) -> Optional[str]:
+        # Return ticket ID or None if full
+        pass
+
+    def unpark(self, ticketId: str, hoursParked: float) -> float:
+        # Return computed parking fee
+        return 0.0
+`,
+        javascript: `class ParkingLot {
+  constructor(floorsCount, spotsPerFloor) {
+    this.floorsCount = floorsCount;
+    this.spotsPerFloor = spotsPerFloor;
+  }
+
+  park(vehicle) {
+    // Return ticketId or null
+    return null;
+  }
+
+  unpark(ticketId, hoursParked) {
+    // Return fee
+    return 0;
+  }
+}
+`,
+        cpp17: `#include <string>
+#include <vector>
+using namespace std;
+
+class ParkingLot {
+public:
+    ParkingLot(int floors, int spotsPerFloor) {}
+    string park(string license, string vType) { return ""; }
+    double unpark(string ticketId, double hours) { return 0.0; }
+};
+`,
+        java17: `import java.util.*;
+
+class ParkingLot {
+    public ParkingLot(int floors, Map<String, Integer> spotsPerFloor) {}
+    public String park(String licensePlate, String vehicleType) { return null; }
+    public double unpark(String ticketId, double hoursParked) { return 0.0; }
+}
+`
+      },
+      testCases: [
+        {
+          id: "1",
+          orderNo: 1,
+          input: 'floors = 2, spots = {"compact": 10, "regular": 20}, park(Car "ABC-123"), unpark(ticket, 2.5h)',
+          expectedOutput: 'Parked at Floor 1 Spot 1, Fee = $12.50',
+          isSample: true
+        }
+      ]
+    },
+    {
+      id: "oops_notification_engine",
+      title: "Design an Extensible Notification Engine (Observer & Strategy Pattern)",
+      difficulty: "Medium",
+      statement: `### Problem Description
+Design an extensible **Notification Dispatcher System** employing the **Observer Pattern** and **Strategy Pattern**.
+
+Features:
+- Channels: \`EmailNotification\`, \`SMSNotification\`, \`PushNotification\`, and \`WebhookNotification\`.
+- Priority Tiers: \`LOW\`, \`MEDIUM\`, \`CRITICAL\` (critical notifications retry on failure or fallback to SMS).
+- User Notification Preferences: Dispatches only to the user's enabled channels.`,
+      constraintsText: "Extensible design allowing new channels without modifying core dispatcher (Open-Closed Principle).",
+      templates: {
+        python3: `from abc import ABC, abstractmethod
+
+class NotificationChannel(ABC):
+    @abstractmethod
+    def send(self, recipient: str, message: str) -> bool:
+        pass
+
+class NotificationDispatcher:
+    def __init__(self):
+        self.channels = {}
+
+    def registerChannel(self, name: str, channel: NotificationChannel):
+        self.channels[name] = channel
+
+    def dispatch(self, userId: str, message: str, priority: str = "MEDIUM") -> bool:
+        pass
+`,
+        javascript: `class NotificationDispatcher {
+  constructor() {
+    this.channels = new Map();
+  }
+
+  registerChannel(name, channelInstance) {
+    this.channels.set(name, channelInstance);
+  }
+
+  dispatch(userId, message, priority = "MEDIUM") {
+    return true;
+  }
+}
+`,
+        cpp17: `#include <string>
+#include <unordered_map>
+using namespace std;
+
+class NotificationDispatcher {
+public:
+    bool dispatch(string userId, string message, string priority) { return true; }
+};
+`,
+        java17: `import java.util.*;
+
+class NotificationDispatcher {
+    public boolean dispatch(String userId, String message, String priority) { return true; }
+}
+`
+      },
+      testCases: [
+        {
+          id: "1",
+          orderNo: 1,
+          input: 'channels: [Email, SMS], userPrefs: [Email], message: "Your OTP is 481920"',
+          expectedOutput: "Dispatched successfully via Email",
+          isSample: true
+        }
+      ]
+    }
+  ],
+  cs_fundamentals: [
+    {
+      id: "cs_consistent_hashing",
+      title: "Consistent Hashing Ring with Virtual Nodes",
+      difficulty: "Medium",
+      statement: `### Problem Description
+Implement a **Consistent Hashing Ring** with Virtual Nodes (replicas) used in distributed systems (like DynamoDB, Cassandra, Memcached) to distribute load evenly across a dynamic cluster of servers.
+
+Operations:
+- \`ConsistentHashRing(virtualNodesPerServer: int)\`
+- \`addServer(serverId: str) -> None\`: Hashes \`virtualNodesPerServer\` positions onto a circular ring $[0, 2^{32} - 1]$.
+- \`removeServer(serverId: str) -> None\`: Removes all virtual nodes for the server from the ring.
+- \`getServer(key: str) -> Optional[str]\`: Hashes \`key\` and returns the first server clockwise on the ring.`,
+      constraintsText: "Clockwise binary search (O(log(N * V)) lookup). Uniform distribution.",
+      templates: {
+        python3: `import hashlib
+from bisect import bisect_right
+from typing import Optional
+
+class ConsistentHashRing:
+    def __init__(self, virtualNodes: int = 100):
+        self.virtualNodes = virtualNodes
+        self.ring = []         # sorted hash values
+        self.hashToServer = {} # hash -> serverId
+
+    def _hash(self, key: str) -> int:
+        return int(hashlib.md5(key.encode()).hexdigest(), 16) & 0xFFFFFFFF
+
+    def addServer(self, serverId: str) -> None:
+        pass
+
+    def removeServer(self, serverId: str) -> None:
+        pass
+
+    def getServer(self, key: str) -> Optional[str]:
+        pass
+`,
+        javascript: `class ConsistentHashRing {
+  constructor(virtualNodes = 100) {
+    this.virtualNodes = virtualNodes;
+    this.ring = [];
+    this.hashToServer = new Map();
+  }
+
+  addServer(serverId) {}
+  removeServer(serverId) {}
+  getServer(key) { return null; }
+}
+`,
+        cpp17: `#include <string>
+#include <map>
+using namespace std;
+
+class ConsistentHashRing {
+public:
+    ConsistentHashRing(int vnodes = 100) {}
+    void addServer(string serverId) {}
+    void removeServer(string serverId) {}
+    string getServer(string key) { return ""; }
+};
+`,
+        java17: `import java.util.*;
+
+class ConsistentHashRing {
+    public ConsistentHashRing(int vnodes) {}
+    public void addServer(String serverId) {}
+    public void removeServer(String serverId) {}
+    public String getServer(String key) { return null; }
+}
+`
+      },
+      testCases: [
+        {
+          id: "1",
+          orderNo: 1,
+          input: 'addServer("nodeA"), addServer("nodeB"), getServer("user_101")',
+          expectedOutput: 'nodeA or nodeB deterministically',
+          isSample: true
+        }
+      ]
+    }
+  ]
+};
+
 export class MockInterviewService {
   /**
    * Initializes a new Mock Interview Session
    */
   static async createInterview(config: InterviewConfig) {
-    // 1. Resolve or choose an algorithmic problem matching topic & difficulty
-    let problem: any = null;
-    if (config.problemId) {
-      problem = await prisma.problem.findFirst({
-        where: {
-          OR: [
-            { id: !isNaN(Number(config.problemId)) ? BigInt(config.problemId) : undefined },
-            { slug: config.problemId }
-          ],
-          deletedAt: null
-        },
-        include: { testCases: { where: { isSample: true } } }
-      });
-    }
-
-    if (!problem) {
-      // Pick an active problem matching difficulty, or fallback to any problem
-      const diffUpper = config.difficulty.toUpperCase();
-      let candidates = await prisma.problem.findMany({
-        where: {
-          difficulty: diffUpper as any,
-          deletedAt: null
-        },
-        include: { testCases: { where: { isSample: true } } },
-        take: 10
-      });
-
-      if (candidates.length === 0) {
-        candidates = await prisma.problem.findMany({
-          where: { deletedAt: null },
-          include: { testCases: { where: { isSample: true } } },
-          take: 10
-        });
-      }
-
-      problem = candidates[Math.floor(Math.random() * candidates.length)] || null;
-    }
-
-    const defaultTemplates = {
+    let problemTitle = "Optimal Subarray Sum";
+    let problemStatement = "Given an array of integers and a target constraint, find the optimal subset or indices satisfying operational criteria with minimal time complexity.";
+    let constraintsText = "1 <= N <= 10^5, -10^9 <= elements <= 10^9";
+    const defaultTemplates: Record<string, string> = {
       python3: "class Solution:\n    def solve(self, *args):\n        # Write your code here\n        pass",
       javascript: "class Solution {\n    solve(...args) {\n        // Write your code here\n    }\n}",
       cpp17: "#include <vector>\n#include <string>\nusing namespace std;\n\nclass Solution {\npublic:\n    void solve() {\n        // Write your code here\n    }\n};",
       java17: "import java.util.*;\n\nclass Solution {\n    public void solve() {\n        // Write your code here\n    }\n}"
     };
-
-    let templates = { ...defaultTemplates };
-    if (problem?.inputTemplate) {
-      try {
-        const parsed = JSON.parse(problem.inputTemplate);
-        templates = { ...defaultTemplates, ...parsed };
-      } catch {}
-    }
-
-    const sampleTestCases = (problem?.testCases || []).map((tc: any, idx: number) => ({
-      id: tc.id ? tc.id.toString() : (idx + 1).toString(),
-      orderNo: tc.orderNo || idx + 1,
-      input: tc.input || "",
-      expectedOutput: tc.expectedOutput || "",
-      isSample: tc.isSample !== false
-    }));
-
-    const finalTestCases = sampleTestCases.length > 0 ? sampleTestCases : [
+    let templates: Record<string, string> = { ...defaultTemplates };
+    let finalTestCases: Array<{ id: string; orderNo: number; input: string; expectedOutput: string; isSample: boolean }> = [
       { id: "1", orderNo: 1, input: "[2, 7, 11, 15], target = 9", expectedOutput: "[0, 1]", isSample: true },
       { id: "2", orderNo: 2, input: "[3, 2, 4], target = 6", expectedOutput: "[1, 2]", isSample: true }
     ];
+    let resolvedProblemId: bigint | null = null;
 
-    const problemTitle = problem?.title || "Optimal Subarray Sum";
-    const problemStatement = problem?.statement || "Given an array of integers and a target constraint, find the optimal subset or indices satisfying the operational criteria with minimal time complexity.";
-    const constraintsText = problem?.constraintsText || "1 <= N <= 10^5, -10^9 <= elements <= 10^9";
+    const topicLower = (config.topic || "").toLowerCase();
+
+    // 1. Check for domain-specific CS Fundamentals topics
+    if (topicLower.includes("operat") || topicLower.includes("os") || topicLower.includes("concurrency")) {
+      const osList = CS_FUNDAMENTALS_PROBLEMS.os;
+      const chosen = osList[Math.floor(Math.random() * osList.length)];
+      problemTitle = chosen.title;
+      problemStatement = chosen.statement;
+      constraintsText = chosen.constraintsText;
+      templates = { ...defaultTemplates, ...chosen.templates };
+      finalTestCases = chosen.testCases;
+    } else if (topicLower.includes("network") || topicLower.includes("cn") || topicLower.includes("tcp") || topicLower.includes("http")) {
+      const cnList = CS_FUNDAMENTALS_PROBLEMS.cn;
+      const chosen = cnList[Math.floor(Math.random() * cnList.length)];
+      problemTitle = chosen.title;
+      problemStatement = chosen.statement;
+      constraintsText = chosen.constraintsText;
+      templates = { ...defaultTemplates, ...chosen.templates };
+      finalTestCases = chosen.testCases;
+    } else if (topicLower.includes("dbms") || topicLower.includes("sql") || topicLower.includes("database")) {
+      const dbmsList = CS_FUNDAMENTALS_PROBLEMS.dbms;
+      const chosen = dbmsList[Math.floor(Math.random() * dbmsList.length)];
+      problemTitle = chosen.title;
+      problemStatement = chosen.statement;
+      constraintsText = chosen.constraintsText;
+      templates = { ...defaultTemplates, ...chosen.templates };
+      finalTestCases = chosen.testCases;
+    } else if (topicLower.includes("oop") || topicLower.includes("object") || topicLower.includes("solid") || topicLower.includes("design pattern")) {
+      const oopsList = CS_FUNDAMENTALS_PROBLEMS.oops;
+      const chosen = oopsList[Math.floor(Math.random() * oopsList.length)];
+      problemTitle = chosen.title;
+      problemStatement = chosen.statement;
+      constraintsText = chosen.constraintsText;
+      templates = { ...defaultTemplates, ...chosen.templates };
+      finalTestCases = chosen.testCases;
+    } else if (topicLower.includes("fundament") || topicLower.includes("system architecture") || topicLower.includes("hashing")) {
+      const csList = CS_FUNDAMENTALS_PROBLEMS.cs_fundamentals;
+      const chosen = csList[Math.floor(Math.random() * csList.length)];
+      problemTitle = chosen.title;
+      problemStatement = chosen.statement;
+      constraintsText = chosen.constraintsText;
+      templates = { ...defaultTemplates, ...chosen.templates };
+      finalTestCases = chosen.testCases;
+    } else if (config.topic.startsWith("Custom:") || config.topic.startsWith("Other:")) {
+      // Dynamic generation via Gemini for custom topic
+      const customTopicName = config.topic.replace(/^(Custom:|Other:)\s*/i, "").trim() || "Advanced Systems Programming";
+      try {
+        const customPrompt = `Generate a high quality coding challenge for topic "${customTopicName}", difficulty "${config.difficulty}", for a candidate interviewing for ${config.roleTitle} at ${config.targetCompany}.
+Respond strictly in JSON format with:
+{
+  "title": "Problem title",
+  "statement": "Markdown statement with problem description, real-world context, and requirements",
+  "constraintsText": "Key boundary and time/space constraints",
+  "templates": {
+    "python3": "python 3 starter code",
+    "javascript": "javascript starter code",
+    "cpp17": "cpp17 starter code",
+    "java17": "java17 starter code"
+  },
+  "testCases": [
+    {"id": "1", "orderNo": 1, "input": "sample input 1", "expectedOutput": "expected output 1", "isSample": true},
+    {"id": "2", "orderNo": 2, "input": "sample input 2", "expectedOutput": "expected output 2", "isSample": true}
+  ]
+}`;
+        const generated = await generateContentWithCascade(customPrompt, {
+          responseMimeType: "application/json",
+          temperature: 0.3
+        });
+        const parsed = JSON.parse(generated || "{}");
+        if (parsed.title && parsed.statement) {
+          problemTitle = parsed.title;
+          problemStatement = parsed.statement;
+          constraintsText = parsed.constraintsText || constraintsText;
+          if (parsed.templates) templates = { ...defaultTemplates, ...parsed.templates };
+          if (Array.isArray(parsed.testCases) && parsed.testCases.length > 0) finalTestCases = parsed.testCases;
+        }
+      } catch (err) {
+        console.warn("⚠️ Custom topic dynamic generation fallback:", err);
+        const fallback = CS_FUNDAMENTALS_PROBLEMS.cs_fundamentals[0];
+        problemTitle = `${customTopicName}: ${fallback.title}`;
+        problemStatement = fallback.statement;
+        constraintsText = fallback.constraintsText;
+        templates = { ...defaultTemplates, ...fallback.templates };
+        finalTestCases = fallback.testCases;
+      }
+    } else {
+      // Classic algorithmic judge problem from PostgreSQL database
+      let problem: any = null;
+      if (config.problemId) {
+        problem = await prisma.problem.findFirst({
+          where: {
+            OR: [
+              { id: !isNaN(Number(config.problemId)) ? BigInt(config.problemId) : undefined },
+              { slug: config.problemId }
+            ],
+            deletedAt: null
+          },
+          include: { testCases: { where: { isSample: true } } }
+        });
+      }
+
+      if (!problem) {
+        const diffUpper = config.difficulty.toUpperCase();
+        let candidates = await prisma.problem.findMany({
+          where: { difficulty: diffUpper as any, deletedAt: null },
+          include: { testCases: { where: { isSample: true } } },
+          take: 10
+        });
+
+        if (candidates.length === 0) {
+          candidates = await prisma.problem.findMany({
+            where: { deletedAt: null },
+            include: { testCases: { where: { isSample: true } } },
+            take: 10
+          });
+        }
+
+        problem = candidates[Math.floor(Math.random() * candidates.length)] || null;
+      }
+
+      if (problem) {
+        resolvedProblemId = problem.id;
+        problemTitle = problem.title || problemTitle;
+        problemStatement = problem.statement || problemStatement;
+        constraintsText = problem.constraintsText || constraintsText;
+
+        if (problem.inputTemplate) {
+          try {
+            const parsedTpl = JSON.parse(problem.inputTemplate);
+            templates = { ...defaultTemplates, ...parsedTpl };
+          } catch {}
+        }
+
+        const sampleTestCases = (problem.testCases || []).map((tc: any, idx: number) => ({
+          id: tc.id ? tc.id.toString() : (idx + 1).toString(),
+          orderNo: tc.orderNo || idx + 1,
+          input: tc.input || "",
+          expectedOutput: tc.expectedOutput || "",
+          isSample: tc.isSample !== false
+        }));
+
+        if (sampleTestCases.length > 0) {
+          finalTestCases = sampleTestCases;
+        }
+      }
+    }
 
     // 2. Synthesize realistic opening greeting tailored to company, role, interviewer persona, and problem
     const greeting = this.generateOpeningGreeting(
@@ -136,7 +1058,8 @@ export class MockInterviewService {
       config.targetCompany,
       config.roleTitle,
       problemTitle,
-      config.durationMinutes
+      config.durationMinutes,
+      config.topic
     );
 
     const initialTranscript: TranscriptTurn[] = [
@@ -159,7 +1082,7 @@ export class MockInterviewService {
         difficulty: config.difficulty,
         durationMinutes: config.durationMinutes,
         status: "IN_PROGRESS",
-        problemId: problem?.id ? problem.id : null,
+        problemId: resolvedProblemId ? resolvedProblemId : null,
         problemTitle,
         problemStatement,
         currentCode: templates.python3,
@@ -187,7 +1110,7 @@ export class MockInterviewService {
       durationMinutes: interview.durationMinutes,
       status: interview.status,
       problem: {
-        id: problem?.id ? problem.id.toString() : "custom",
+        id: resolvedProblemId ? resolvedProblemId.toString() : "domain_problem",
         title: problemTitle,
         statement: problemStatement,
         constraintsText,
@@ -200,15 +1123,30 @@ export class MockInterviewService {
   }
 
   /**
-   * Generates opening interviewer greeting
+   * Generates opening interviewer greeting tailored to domain
    */
   private static generateOpeningGreeting(
     interviewerName: string,
     company: string,
     roleTitle: string,
     problemTitle: string,
-    duration: number
+    duration: number,
+    topic?: string
   ): string {
+    const t = (topic || "").toLowerCase();
+    if (t.includes("operat") || t.includes("os") || t.includes("concurrency")) {
+      return `Hi! Welcome to your technical interview for the ${roleTitle} role at ${company}. I'm ${interviewerName}. Today we'll be diving into Operating Systems and concurrency concepts with "${problemTitle}". We have about ${duration} minutes. As you design your solution, think through thread safety, race conditions, and deadlocks. Whenever you're ready, talk me through your architectural plan!`;
+    }
+    if (t.includes("network") || t.includes("cn") || t.includes("tcp") || t.includes("http")) {
+      return `Welcome! Great to meet you. I'm ${interviewerName} with the engineering team at ${company}. For this ${roleTitle} session, we're focusing on Computer Networks and protocol architecture with "${problemTitle}". We have ${duration} minutes. Feel free to inspect the problem statement, think out loud, and let me know your thoughts on packet handling and edge cases!`;
+    }
+    if (t.includes("dbms") || t.includes("sql") || t.includes("database")) {
+      return `Hello and welcome! I'm ${interviewerName} from ${company}. Today's ${roleTitle} screen focuses on Database Systems and query engine internals with "${problemTitle}". We have ${duration} minutes. We value how you reason through ACID guarantees, indexing trade-offs, and data layout. What stands out to you as you review this?`;
+    }
+    if (t.includes("oop") || t.includes("object") || t.includes("solid") || t.includes("design pattern")) {
+      return `Hi there! I'm ${interviewerName} from ${company}. In this ${roleTitle} session, we'll be exploring Object-Oriented Design, SOLID principles, and clean patterns with "${problemTitle}". We have ${duration} minutes. Focus on clean class abstractions, extensibility, and separation of concerns. Whenever you're ready, how would you structure the core entities?`;
+    }
+
     const greetings = [
       `Hi there! Welcome to your technical interview for the ${roleTitle} role here at ${company}. I'm ${interviewerName}, and I'll be partnering with you today. We have about ${duration} minutes. We'll be tackling "${problemTitle}". Feel free to read through the problem statement on your screen, ask any clarifying questions, and talk me through your thought process before writing code. How are you feeling today?`,
       `Hello and welcome! Great to meet you. I'm ${interviewerName} with the engineering team at ${company}. Today we're looking at "${problemTitle}" for our ${roleTitle} session. In this interview, how you think through tradeoffs and edge cases is just as important as working code. Take your time to inspect the statement, and whenever you're ready, let me know your initial intuition!`,
@@ -253,6 +1191,7 @@ The candidate is participating live via video, audio, and a collaborative code e
 [INTERVIEW DETAILS]:
 - Company: ${interview.targetCompany}
 - Role: ${interview.roleTitle}
+- Focus Domain / Topic: ${interview.topic}
 - Problem Title: ${interview.problemTitle}
 - Problem Statement: ${interview.problemStatement}
 - Programming Language: ${language}
@@ -279,12 +1218,16 @@ ${params.screenObservation ? `[VIDEO/SCREEN OBSERVATION]: ${params.screenObserva
 CRITICAL BEHAVIORAL INSTRUCTIONS:
 1. Speak naturally as a human interviewer on a live video call. Speak directly to the candidate ("you").
 2. KEEP IT CONCISE AND SPOKEN: Maximum 2 to 4 sentences. Interviewers do NOT give long monologues during a live coding session.
-3. SOCRATIC GUIDANCE:
-   - If they are explaining an approach, acknowledge it, and probe their Big-O time and space complexity or asking how they will handle duplicates/empty cases.
-   - If their code has a logical bug or off-by-one error, don't tell them the fix directly—guide their eyes (e.g. "Take a close look at your loop termination condition in line X; what happens when index reaches N?").
-   - If tests failed, encourage them to trace the failing case by hand.
-   - If they asked for a hint, give a gentle nudge regarding data structures or invariants without spoiling the answer.
-4. Professional, encouraging, but rigorous standard consistent with ${interview.targetCompany}.
+3. DOMAIN EXPERTISE:
+   - If topic is Operating Systems / Concurrency: Probe into thread synchronization, condition variables, race conditions, atomic operations, and deadlock avoidance.
+   - If topic is Computer Networks: Probe into packet framing, sliding window flow control, rate limiting, and transport protocol trade-offs.
+   - If topic is DBMS / SQL: Probe into ACID transactions, locking, index efficiency (B-Trees / Hash indices), and query plans.
+   - If topic is Object-Oriented Programming (OOPS): Probe into SOLID principles, polymorphism, encapsulation, and decoupling via design patterns.
+   - If topic is Algorithms: Probe into Big-O time and space complexity ($O(N)$), boundary edge cases, and optimal data structures.
+4. SOCRATIC GUIDANCE:
+   - If their code has a logical bug, don't give the answer directly—guide their eyes to the line or condition.
+   - If tests failed, encourage them to trace the failing case step-by-step.
+5. Professional, encouraging, but rigorous standard consistent with ${interview.targetCompany}.
 
 Respond strictly in JSON format with:
 {
@@ -313,7 +1256,8 @@ Respond strictly in JSON format with:
         params.contextType || "speech",
         params.userSpeech,
         params.testResults,
-        interview.targetCompany
+        interview.targetCompany,
+        interview.topic
       );
     }
 
@@ -388,27 +1332,58 @@ Respond strictly in JSON format with:
     contextType: string,
     userSpeech?: string,
     testResults?: { passed: number; total: number; error?: string },
-    company?: string
+    company?: string,
+    topic?: string
   ): string {
     const text = (userSpeech || "").toLowerCase().trim();
+    const t = (topic || "").toLowerCase();
 
     if (contextType === "test_run") {
       if (testResults && testResults.passed === testResults.total && testResults.total > 0) {
-        return `Awesome job! All ${testResults.total} sample test cases are passing cleanly. Now, let's step back and analyze: what are the worst-case time and space complexities of your implementation, and could we optimize either?`;
+        return `Awesome job! All ${testResults.total} test cases are passing cleanly. Now, let's analyze: what are the worst-case time and space complexities, and how would this hold up under heavy concurrent load?`;
       } else {
         return `I see ${testResults?.passed || 0} out of ${testResults?.total || 0} test cases passing. Take a look at the failing case: trace through your variables step-by-step. Where is the output diverging from what you expect?`;
       }
     }
 
     if (contextType === "hint_request") {
-      return `Think about the mathematical properties or invariants of the input. Could sorting the elements or maintaining an auxiliary hash map allow you to look up complements in O(1) time instead of O(N)?`;
+      if (t.includes("operat") || t.includes("os") || t.includes("concurrency")) {
+        return `Consider using condition variables paired with a mutex. How will you notify waiting threads when buffer capacity changes?`;
+      }
+      if (t.includes("network") || t.includes("cn")) {
+        return `Think about timestamp replenishment: calculate the elapsed time since the last packet and refill tokens linearly up to maximum capacity.`;
+      }
+      if (t.includes("dbms") || t.includes("sql")) {
+        return `Think about building a hash map index on the smaller table first, then probing with the outer table in O(1) time per record.`;
+      }
+      if (t.includes("oop")) {
+        return `Think about encapsulating vehicle sizing into an enum and decoupling fee computation using the Strategy Pattern.`;
+      }
+      return `Think about the mathematical properties or invariants of the input. Could maintaining an auxiliary hash map allow you to look up complements in O(1) time?`;
     }
 
     if (contextType === "code_review") {
-      return `Your overall code structure looks clean and well-decomposed. Pay close attention to your base cases and boundary constraints: what happens if the input is empty or has a single element?`;
+      return `Your overall code structure looks clean and well-decomposed. Pay close attention to your base cases and boundary constraints: what happens if the input is empty or at maximum capacity?`;
     }
 
-    // Context-aware speech parsing
+    // Domain-specific keyword matching
+    if (text.includes("mutex") || text.includes("lock") || text.includes("semaphore") || text.includes("condition variable") || text.includes("race condition") || text.includes("thread")) {
+      return `Good catch on thread synchronization. How will you ensure that multiple threads don't cause a deadlock if they acquire locks in differing orders?`;
+    }
+
+    if (text.includes("packet") || text.includes("token") || text.includes("rate limit") || text.includes("burst") || text.includes("window") || text.includes("tcp") || text.includes("udp")) {
+      return `That makes sense for network traffic shaping. How does your rate limiter handle bursts of packets arriving simultaneously?`;
+    }
+
+    if (text.includes("acid") || text.includes("transaction") || text.includes("isolation") || text.includes("index") || text.includes("b-tree") || text.includes("hash join") || text.includes("probe")) {
+      return `Solid reasoning on database operations. What is the memory footprint of storing that hash index, and how would you handle a join that exceeds available RAM?`;
+    }
+
+    if (text.includes("solid") || text.includes("pattern") || text.includes("polymorphism") || text.includes("inheritance") || text.includes("strategy") || text.includes("factory")) {
+      return `I like how you're keeping the architecture decoupled. How easy would it be to introduce a new subclass or strategy without modifying existing caller code?`;
+    }
+
+    // Speech greetings & flow
     if (text.includes("hello") || text.includes("hi") || text.includes("hey") || text.includes("good morning") || text.includes("good afternoon")) {
       return `Hello! Great to connect with you. Whenever you're ready, take a look at the problem statement on your screen. What are your initial thoughts or clarifying questions on how to approach this?`;
     }
@@ -418,15 +1393,11 @@ Respond strictly in JSON format with:
     }
 
     if (text.includes("complexity") || text.includes("big o") || text.includes("time") || text.includes("space")) {
-      return `Good intuition. If we analyze the loop boundaries, each iteration does constant work. Can we avoid nested loops by using an auxiliary frequency map?`;
+      return `Good intuition. If we analyze the operations, each step is bounded. Can we avoid redundant work with an auxiliary hash map?`;
     }
 
     if (text.includes("hash map") || text.includes("dictionary") || text.includes("hashmap") || text.includes("map")) {
       return `Using a hash map is a very solid direction—it gives us O(1) average lookup time. How will you store elements as you iterate through the input?`;
-    }
-
-    if (text.includes("two pointer") || text.includes("pointer") || text.includes("binary search") || text.includes("sort")) {
-      return `That approach can work well if the array is sorted. Keep in mind the sorting step takes O(N log N). Does that meet our target constraints?`;
     }
 
     const standardReplies = [

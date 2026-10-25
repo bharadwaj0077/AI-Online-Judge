@@ -46,13 +46,33 @@ interface PastInterview {
 export default function InterviewHubPage() {
   const router = useRouter();
 
-  // Configuration state
-  const [targetCompany, setTargetCompany] = useState("Google");
-  const [roleTitle, setRoleTitle] = useState("Senior Software Engineer (L5)");
-  const [topic, setTopic] = useState("Data Structures & Algorithms");
+  // Configuration state with full Custom Option support
+  const [selectedCompany, setSelectedCompany] = useState("Google");
+  const [isCustomCompany, setIsCustomCompany] = useState(false);
+  const [customCompanyName, setCustomCompanyName] = useState("");
+
+  const [selectedSeniority, setSelectedSeniority] = useState("Senior (L5)");
+  const [isCustomSeniority, setIsCustomSeniority] = useState(false);
+  const [customSeniorityName, setCustomSeniorityName] = useState("");
+
+  const [selectedRole, setSelectedRole] = useState("Backend & Systems Engineer");
+  const [isCustomRole, setIsCustomRole] = useState(false);
+  const [customRoleName, setCustomRoleName] = useState("");
+
+  const [selectedTopic, setSelectedTopic] = useState("Operating Systems (OS)");
+  const [isCustomTopic, setIsCustomTopic] = useState(false);
+  const [customTopicName, setCustomTopicName] = useState("");
+
   const [difficulty, setDifficulty] = useState("Medium");
   const [durationMinutes, setDurationMinutes] = useState(45);
   const [interviewerPersona, setInterviewerPersona] = useState("Alex (Staff SWE)");
+
+  // Computed properties
+  const effectiveCompany = isCustomCompany ? (customCompanyName.trim() || "Custom Tech Enterprise") : selectedCompany;
+  const effectiveSeniority = isCustomSeniority ? (customSeniorityName.trim() || "Senior (L5)") : selectedSeniority;
+  const effectiveRole = isCustomRole ? (customRoleName.trim() || "Software Engineer") : selectedRole;
+  const effectiveRoleTitle = `${effectiveSeniority} · ${effectiveRole}`;
+  const effectiveTopic = isCustomTopic ? `Custom: ${customTopicName.trim() || "Advanced CS Systems"}` : selectedTopic;
 
   // Hardware pre-flight state
   const [cameraActive, setCameraActive] = useState(false);
@@ -164,9 +184,9 @@ export default function InterviewHubPage() {
 
     try {
       const res = await api.post("/interviews", {
-        targetCompany,
-        roleTitle,
-        topic,
+        targetCompany: effectiveCompany,
+        roleTitle: effectiveRoleTitle,
+        topic: effectiveTopic,
         difficulty,
         durationMinutes,
         interviewerName: interviewerPersona
@@ -185,21 +205,89 @@ export default function InterviewHubPage() {
   };
 
   const companies = [
-    { name: "Google", color: "from-blue-600 to-emerald-500", style: "Algorithmic & Rigorous" },
-    { name: "Meta", color: "from-blue-500 to-indigo-600", style: "Speed & Scale" },
-    { name: "Amazon", color: "from-amber-500 to-orange-600", style: "LP & Systems" },
-    { name: "Microsoft", color: "from-cyan-500 to-blue-600", style: "Clean Architecture" },
-    { name: "Apple", color: "from-zinc-400 to-zinc-600", style: "Efficiency & Precision" },
-    { name: "AI Unicorn", color: "from-purple-500 to-pink-600", style: "Modern & Pragmatic" }
+    { name: "Google", style: "Algorithmic & Rigorous" },
+    { name: "Meta", style: "Speed & Scale" },
+    { name: "Amazon", style: "LP & Systems" },
+    { name: "Microsoft", style: "Clean Architecture" },
+    { name: "Apple", style: "Efficiency & Precision" },
+    { name: "Netflix", style: "Microservices & Concurrency" },
+    { name: "Uber", style: "High-Throughput Distributed" },
+    { name: "AI Unicorn", style: "Modern & Pragmatic" }
+  ];
+
+  const seniorities = [
+    "Intern / New Grad",
+    "Junior (L3 / SDE I)",
+    "Mid-Level (L4 / SDE II)",
+    "Senior (L5 / SDE III)",
+    "Staff / Principal (L6+)"
   ];
 
   const roles = [
-    "Junior Software Engineer (L3)",
-    "Software Engineer (L4)",
-    "Senior Software Engineer (L5)",
-    "Staff Software Engineer (L6)",
+    "Full Stack Software Engineer",
     "Frontend Specialist",
-    "Systems & Distributed Architect"
+    "Backend & Systems Engineer",
+    "Systems & Low-Level Engineer",
+    "Data & Infrastructure Engineer",
+    "Machine Learning / AI Engineer",
+    "DevOps & Cloud Architect"
+  ];
+
+  const topics = [
+    {
+      id: "Operating Systems (OS)",
+      name: "Operating Systems (OS)",
+      desc: "Processes, Threads, Mutex/Semaphore, Deadlocks, Paging, Context Switches",
+      badge: "Core CS"
+    },
+    {
+      id: "Computer Networks (CN)",
+      name: "Computer Networks (CN)",
+      desc: "TCP/IP, Flow Control, DNS, HTTP/3, Sockets, Rate Limiting",
+      badge: "Core CS"
+    },
+    {
+      id: "DBMS & SQL",
+      name: "DBMS & SQL",
+      desc: "ACID, B-Trees, Indexing, Hash Join, Strict 2PL Concurrency, Query Execution",
+      badge: "Core CS"
+    },
+    {
+      id: "Object-Oriented Programming (OOPS)",
+      name: "Object-Oriented Programming (OOPS)",
+      desc: "SOLID Principles, Design Patterns (Observer, Strategy, Factory), Decoupling",
+      badge: "Core CS"
+    },
+    {
+      id: "CS Fundamentals & Distributed Systems",
+      name: "CS Fundamentals & Distributed",
+      desc: "Consistent Hashing, Dynamic Memory Allocation, Bloom Filters, Caching",
+      badge: "Core CS"
+    },
+    {
+      id: "Data Structures & Algorithms (DSA)",
+      name: "Data Structures & Algo (DSA)",
+      desc: "Arrays, Hash Maps, Priority Queues, Binary Search, Sliding Window",
+      badge: "Algorithmic"
+    },
+    {
+      id: "Dynamic Programming & Optimization",
+      name: "Dynamic Programming",
+      desc: "Memoization, Tabulation, Subproblem DAGs, Knapsack, Optimal Substructure",
+      badge: "Algorithmic"
+    },
+    {
+      id: "Tree & Graph Traversals",
+      name: "Trees & Graphs",
+      desc: "DFS/BFS, Topological Sort, Shortest Path, Disjoint Sets, Tree Invariants",
+      badge: "Algorithmic"
+    },
+    {
+      id: "System Design & Architecture",
+      name: "System Design & Architecture",
+      desc: "Microservices, Sharding, Message Queues, Event Sourcing, CAP Theorem",
+      badge: "Architecture"
+    }
   ];
 
   const personas = [
@@ -239,7 +327,7 @@ export default function InterviewHubPage() {
                 Conversational <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-400">AI Mock Interviewer</span>
               </h1>
               <p className="text-sm md:text-base text-zinc-400 max-w-2xl leading-relaxed">
-                Step into a high-stakes, real-time technical screen with live voice conversation, webcam behavioral telemetry, screen sharing, and continuous code inspection powered by Gemini.
+                Step into a high-stakes, real-time technical screen with live voice conversation, webcam behavioral telemetry, screen sharing, and continuous code inspection covering Algorithms and Core CS Fundamentals.
               </p>
             </div>
             <div className="flex flex-col items-end gap-2 bg-zinc-900/80 border border-zinc-800 p-4 rounded-2xl">
@@ -247,7 +335,7 @@ export default function InterviewHubPage() {
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
                 Live Multimodal AI Ready
               </div>
-              <div className="text-[11px] text-zinc-400">Gemini 2.5 Flash Voice Engine</div>
+              <div className="text-[11px] text-zinc-400">Gemini 2.5 Flash Cascade Engine</div>
             </div>
           </div>
         </div>
@@ -263,77 +351,265 @@ export default function InterviewHubPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Column 1 & 2: Setup Options */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Target Company */}
+            {/* Target Company (With Custom Option) */}
             <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 space-y-4">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-cyan-400" /> Target Company
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-cyan-400" /> Target Company
+                </label>
+                <span className="text-[11px] font-mono text-cyan-400 font-semibold">
+                  Selected: {effectiveCompany}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 {companies.map((c) => (
                   <button
                     key={c.name}
                     type="button"
-                    onClick={() => setTargetCompany(c.name)}
-                    className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden ${
-                      targetCompany === c.name
+                    onClick={() => {
+                      setSelectedCompany(c.name);
+                      setIsCustomCompany(false);
+                    }}
+                    className={`p-3 rounded-xl border text-left transition-all relative overflow-hidden ${
+                      !isCustomCompany && selectedCompany === c.name
                         ? "border-cyan-500 bg-cyan-950/20 shadow-lg shadow-cyan-950/40 ring-1 ring-cyan-500/40"
                         : "border-zinc-800 bg-zinc-950/50 hover:border-zinc-700"
                     }`}
                   >
-                    <div className="font-bold text-sm text-white">{c.name}</div>
-                    <div className="text-[10px] text-zinc-400 mt-1">{c.style}</div>
-                    {targetCompany === c.name && (
+                    <div className="font-bold text-xs text-white">{c.name}</div>
+                    <div className="text-[10px] text-zinc-400 mt-1 truncate">{c.style}</div>
+                    {!isCustomCompany && selectedCompany === c.name && (
                       <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-cyan-400" />
                     )}
                   </button>
                 ))}
+
+                {/* Custom Company Option */}
+                <button
+                  type="button"
+                  onClick={() => setIsCustomCompany(true)}
+                  className={`p-3 rounded-xl border text-left transition-all relative overflow-hidden ${
+                    isCustomCompany
+                      ? "border-cyan-500 bg-cyan-950/20 shadow-lg shadow-cyan-950/40 ring-1 ring-cyan-500/40"
+                      : "border-zinc-800 bg-zinc-950/50 hover:border-zinc-700"
+                  }`}
+                >
+                  <div className="font-bold text-xs text-cyan-300 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-cyan-400" /> Custom / Other
+                  </div>
+                  <div className="text-[10px] text-zinc-400 mt-1">Enter any company</div>
+                  {isCustomCompany && (
+                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-cyan-400" />
+                  )}
+                </button>
               </div>
+
+              {/* Custom Company Input Field */}
+              {isCustomCompany && (
+                <div className="mt-2 space-y-1.5 animate-fadeIn">
+                  <label className="text-[11px] text-zinc-400 flex items-center gap-1.5 font-medium">
+                    Enter target company name:
+                  </label>
+                  <input
+                    type="text"
+                    value={customCompanyName}
+                    onChange={(e) => setCustomCompanyName(e.target.value)}
+                    placeholder="e.g. Stripe, Palantir, Coinbase, Goldman Sachs, Local Startup..."
+                    className="w-full bg-zinc-950 border border-cyan-500/60 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 shadow-inner"
+                    autoFocus
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Target Role & Level */}
+            {/* Target Role & Seniority (With Custom Option for Both) */}
             <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 space-y-4">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-cyan-400" /> Target Role & Seniority
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {roles.map((r) => (
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-cyan-400" /> Target Role & Seniority
+                </label>
+                <span className="text-[11px] font-mono text-cyan-400 font-semibold truncate max-w-xs">
+                  {effectiveRoleTitle}
+                </span>
+              </div>
+
+              {/* Seniority Selector */}
+              <div className="space-y-2">
+                <span className="text-[11px] text-zinc-400 font-medium">Seniority Tier:</span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {seniorities.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        setSelectedSeniority(s);
+                        setIsCustomSeniority(false);
+                      }}
+                      className={`p-2.5 rounded-xl border text-xs font-medium text-left transition-all ${
+                        !isCustomSeniority && selectedSeniority === s
+                          ? "border-cyan-500 bg-cyan-950/20 text-cyan-300 font-semibold"
+                          : "border-zinc-800 bg-zinc-950/50 text-zinc-400 hover:border-zinc-700"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
                   <button
-                    key={r}
                     type="button"
-                    onClick={() => setRoleTitle(r)}
-                    className={`p-3 rounded-xl border text-left text-xs font-medium transition-all ${
-                      roleTitle === r
+                    onClick={() => setIsCustomSeniority(true)}
+                    className={`p-2.5 rounded-xl border text-xs font-medium text-left transition-all ${
+                      isCustomSeniority
+                        ? "border-cyan-500 bg-cyan-950/20 text-cyan-300 font-semibold"
+                        : "border-zinc-800 bg-zinc-950/50 text-zinc-400 hover:border-zinc-700"
+                    }`}
+                  >
+                    Custom Seniority...
+                  </button>
+                </div>
+                {isCustomSeniority && (
+                  <input
+                    type="text"
+                    value={customSeniorityName}
+                    onChange={(e) => setCustomSeniorityName(e.target.value)}
+                    placeholder="Enter custom seniority (e.g. Lead Architect, Tech Lead Manager, VP of Engineering...)"
+                    className="w-full mt-1 bg-zinc-950 border border-cyan-500/60 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    autoFocus
+                  />
+                )}
+              </div>
+
+              {/* Role Domain Selector */}
+              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                <span className="text-[11px] text-zinc-400 font-medium">Technical Specialization / Role:</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {roles.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => {
+                        setSelectedRole(r);
+                        setIsCustomRole(false);
+                      }}
+                      className={`p-2.5 rounded-xl border text-left text-xs font-medium transition-all ${
+                        !isCustomRole && selectedRole === r
+                          ? "border-cyan-500 bg-cyan-950/20 text-cyan-300 font-semibold"
+                          : "border-zinc-800 bg-zinc-950/50 text-zinc-300 hover:border-zinc-700"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomRole(true)}
+                    className={`p-2.5 rounded-xl border text-left text-xs font-medium transition-all ${
+                      isCustomRole
                         ? "border-cyan-500 bg-cyan-950/20 text-cyan-300 font-semibold"
                         : "border-zinc-800 bg-zinc-950/50 text-zinc-300 hover:border-zinc-700"
                     }`}
                   >
-                    {r}
+                    Custom Role Specification...
                   </button>
-                ))}
+                </div>
+                {isCustomRole && (
+                  <input
+                    type="text"
+                    value={customRoleName}
+                    onChange={(e) => setCustomRoleName(e.target.value)}
+                    placeholder="Enter custom role title (e.g. Distributed Consensus Specialist, Security Architect, Mobile Lead...)"
+                    className="w-full mt-1 bg-zinc-950 border border-cyan-500/60 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    autoFocus
+                  />
+                )}
               </div>
             </div>
 
-            {/* Topic, Difficulty & Duration */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Topic */}
-              <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-5 space-y-3">
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Topic Domain</label>
-                <select
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500"
-                >
-                  <option value="Data Structures & Algorithms">Data Structures & Algo</option>
-                  <option value="Dynamic Programming & Optimization">Dynamic Programming</option>
-                  <option value="Tree & Graph Traversals">Trees & Graphs</option>
-                  <option value="System Design & Architecture">System Design</option>
-                  <option value="Concurrency & Thread Safety">Concurrency</option>
-                </select>
+            {/* Topic Selection (Expanded with CN, OS, DBMS, SQL, OOPS, CS Fundamentals & Custom) */}
+            <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-cyan-400" /> Technical Topic & Problem Domain
+                </label>
+                <span className="text-[11px] font-mono text-cyan-400 font-semibold truncate max-w-xs">
+                  {effectiveTopic}
+                </span>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {topics.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedTopic(t.id);
+                      setIsCustomTopic(false);
+                    }}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      !isCustomTopic && selectedTopic === t.id
+                        ? "border-cyan-500 bg-cyan-950/30 text-cyan-200 ring-1 ring-cyan-500/40 shadow-md shadow-cyan-950/30"
+                        : "border-zinc-800 bg-zinc-950/50 text-zinc-300 hover:border-zinc-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-white">{t.name}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-cyan-300 font-mono">
+                        {t.badge}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-zinc-400 mt-1 leading-snug">{t.desc}</div>
+                  </button>
+                ))}
+
+                {/* Custom Topic Card */}
+                <button
+                  type="button"
+                  onClick={() => setIsCustomTopic(true)}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    isCustomTopic
+                      ? "border-cyan-500 bg-cyan-950/30 text-cyan-200 ring-1 ring-cyan-500/40 shadow-md shadow-cyan-950/30"
+                      : "border-zinc-800 bg-zinc-950/50 text-zinc-300 hover:border-zinc-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-cyan-300 flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5" /> Other / Custom Topic
+                    </span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-900/60 text-cyan-300 font-mono">
+                      Dynamic AI
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-zinc-400 mt-1 leading-snug">
+                    Enter any domain: Concurrency, Linux Kernel, Raft Consensus, WebSockets, etc.
+                  </div>
+                </button>
+              </div>
+
+              {isCustomTopic && (
+                <div className="mt-2 space-y-1.5 animate-fadeIn">
+                  <label className="text-[11px] text-zinc-400 font-medium">
+                    Enter custom technical domain or topic:
+                  </label>
+                  <input
+                    type="text"
+                    value={customTopicName}
+                    onChange={(e) => setCustomTopicName(e.target.value)}
+                    placeholder="e.g. Concurrency & Mutexes, Linux Kernel Internals, Raft Consensus, Redis In-Memory Architecture..."
+                    className="w-full bg-zinc-950 border border-cyan-500/60 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 shadow-inner"
+                    autoFocus
+                  />
+                  <p className="text-[10px] text-zinc-500">
+                    The AI Interviewer will dynamically synthesize a problem and evaluation criteria tailored to this exact topic.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Difficulty & Duration */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Difficulty */}
               <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-5 space-y-3">
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Difficulty</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Difficulty Level</label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {["Easy", "Medium", "Hard"].map((d) => (
                     <button
@@ -361,19 +637,19 @@ export default function InterviewHubPage() {
                 <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-cyan-400" /> Duration
                 </label>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-4 gap-1.5">
                   {[15, 30, 45, 60].map((m) => (
                     <button
                       key={m}
                       type="button"
                       onClick={() => setDurationMinutes(m)}
-                      className={`py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                      className={`py-2 rounded-lg text-xs font-semibold border transition-all ${
                         durationMinutes === m
                           ? "border-cyan-500 bg-cyan-950/20 text-cyan-300"
                           : "border-zinc-800 bg-zinc-950 text-zinc-400"
                       }`}
                     >
-                      {m} Min
+                      {m}m
                     </button>
                   ))}
                 </div>
