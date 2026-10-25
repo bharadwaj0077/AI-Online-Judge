@@ -684,6 +684,30 @@ app.post("/api/v1/problems/:id/verdict", async (req, res): Promise<void> => {
   }
 });
 
+app.post("/api/v1/problems/:id/diagnose-failure", async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { sourceCode, language, failureContext } = req.body;
+    if (!failureContext) {
+      res.status(400).json({ success: false, message: "failureContext is required." });
+      return;
+    }
+    const diagnosis = await AiService.diagnoseFailure(id, sourceCode, language, failureContext);
+    res.status(200).json({ success: true, diagnosis });
+  } catch (err: any) {
+    console.error("AI Failure Diagnosis Error:", err);
+    res.status(200).json({
+      success: false,
+      diagnosis: {
+        rootCause: "The algorithm did not satisfy all constraints or invariants on this input.",
+        traceExplanation: `The code failed with verdict ${req.body?.failureContext?.verdict || "WRONG_ANSWER"}.`,
+        howToFix: "Trace through your loop with the failing input manually and check boundary conditions.",
+        suggestedInvariant: "Validate all corner cases including duplicates, negatives, and empty inputs."
+      }
+    });
+  }
+});
+
 app.post("/api/v1/ai/review/:submissionPublicId", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const { submissionPublicId } = req.params;
@@ -991,12 +1015,26 @@ app.post("/api/v1/judge/submit", requireAuth, async (req: AuthenticatedRequest, 
             }
           ];
 
+    // Sort test cases: Samples first, then hidden test cases
+    const sortedTestCases = [...testCases].sort((a, b) => {
+      if (a.isSample !== b.isSample) {
+        return a.isSample ? -1 : 1; // Sample test cases run first
+      }
+      return (a.orderNo || 0) - (b.orderNo || 0);
+    });
+
+    const totalSampleCases = sortedTestCases.filter((tc) => tc.isSample).length;
+    const totalHiddenCases = sortedTestCases.filter((tc) => !tc.isSample).length;
+
     let overallVerdict: Verdict = Verdict.ACCEPTED;
     let totalTimeMs = 0;
-    let passedCount = 0;
+    let samplePassedCount = 0;
+    let hiddenPassedCount = 0;
     let sandboxOffline = false;
+    let failedCase: any = null;
 
-    for (const tc of testCases) {
+    for (let i = 0; i < sortedTestCases.length; i++) {
+      const tc = sortedTestCases[i];
       const execResult = await runCodeInSandbox(sourceCode, language, tc.input);
       totalTimeMs += execResult.execTimeMs;
 
@@ -1006,27 +1044,50 @@ app.post("/api/v1/judge/submit", requireAuth, async (req: AuthenticatedRequest, 
         break;
       }
 
+      let caseVerdict: Verdict = Verdict.ACCEPTED;
+      let parsedOutput = "";
+      let parsedStdout = "";
+
       if (execResult.timedOut) {
-        if (overallVerdict === Verdict.ACCEPTED) overallVerdict = Verdict.TIME_LIMIT_EXCEEDED;
-        continue;
-      }
-      if (execResult.stderr) {
-        if (overallVerdict === Verdict.ACCEPTED) {
-          overallVerdict = execResult.stderr.toLowerCase().includes("syntax")
-            ? Verdict.COMPILATION_ERROR
-            : Verdict.RUNTIME_ERROR;
-        }
-        continue;
-      }
-
-      const parsed = parseSandboxOutput(execResult.rawStdout);
-      const actualClean = parsed.output.replace(/\s+/g, "").toLowerCase();
-      const expectedClean = tc.expectedOutput.replace(/\s+/g, "").toLowerCase();
-
-      if (actualClean === expectedClean) {
-        passedCount++;
+        caseVerdict = Verdict.TIME_LIMIT_EXCEEDED;
+      } else if (execResult.stderr) {
+        caseVerdict = execResult.stderr.toLowerCase().includes("syntax")
+          ? Verdict.COMPILATION_ERROR
+          : Verdict.RUNTIME_ERROR;
       } else {
-        if (overallVerdict === Verdict.ACCEPTED) overallVerdict = Verdict.WRONG_ANSWER;
+        const parsed = parseSandboxOutput(execResult.rawStdout);
+        parsedOutput = parsed.output;
+        parsedStdout = parsed.stdout;
+        const actualClean = (parsed.output || "").replace(/\s+/g, "").toLowerCase();
+        const expectedClean = (tc.expectedOutput || "").replace(/\s+/g, "").toLowerCase();
+
+        if (actualClean !== expectedClean) {
+          caseVerdict = Verdict.WRONG_ANSWER;
+        }
+      }
+
+      if (caseVerdict === Verdict.ACCEPTED) {
+        if (tc.isSample) {
+          samplePassedCount++;
+        } else {
+          hiddenPassedCount++;
+        }
+      } else {
+        // LEETCODE STYLE FAIL-FAST: Stop immediately upon encountering the first failure!
+        overallVerdict = caseVerdict;
+        failedCase = {
+          orderNo: i + 1,
+          isSample: tc.isSample,
+          caseType: tc.isSample ? "Sample Test Case" : "Hidden Test Case",
+          caseIndex: tc.isSample ? samplePassedCount + 1 : hiddenPassedCount + 1,
+          input: tc.input,
+          expectedOutput: tc.expectedOutput,
+          actualOutput: parsedOutput || (caseVerdict === Verdict.TIME_LIMIT_EXCEEDED ? "Time Limit Exceeded" : "None"),
+          stdout: parsedStdout,
+          error: execResult.stderr || null,
+          verdict: caseVerdict
+        };
+        break; // No need to check subsequent test cases
       }
     }
 
@@ -1039,6 +1100,7 @@ app.post("/api/v1/judge/submit", requireAuth, async (req: AuthenticatedRequest, 
     }
 
     const finalScore = overallVerdict === Verdict.ACCEPTED ? DIFFICULTY_POINTS[targetProblem.difficulty] || 100 : 0;
+    const evaluatedCount = Math.max(1, samplePassedCount + hiddenPassedCount + (failedCase ? 1 : 0));
     const submissionRecord = await prisma.submission.create({
       data: {
         userId: user.id,
@@ -1047,7 +1109,7 @@ app.post("/api/v1/judge/submit", requireAuth, async (req: AuthenticatedRequest, 
         sourceCode: sourceCode,
         verdict: overallVerdict,
         score: finalScore,
-        executionTimeMs: Math.round(totalTimeMs / testCases.length),
+        executionTimeMs: Math.round(totalTimeMs / evaluatedCount),
         memoryUsedKb: 15420
       }
     });
@@ -1081,8 +1143,17 @@ app.post("/api/v1/judge/submit", requireAuth, async (req: AuthenticatedRequest, 
       submissionPublicId: submissionRecord.publicId,
       verdict: overallVerdict,
       score: finalScore,
-      passedCases: passedCount,
-      totalCases: testCases.length,
+      passedCases: samplePassedCount + hiddenPassedCount,
+      totalCases: sortedTestCases.length,
+      sampleCases: {
+        passed: samplePassedCount,
+        total: totalSampleCases
+      },
+      hiddenCases: {
+        passed: hiddenPassedCount,
+        total: totalHiddenCases
+      },
+      failedCase: failedCase || null,
       executionTimeMs: submissionRecord.executionTimeMs
     });
   } catch (err: any) {

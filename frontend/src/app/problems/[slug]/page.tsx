@@ -27,7 +27,7 @@ import {
   ArrowRight,
   ShieldCheck
 } from "lucide-react";
-import { TieredHintItem } from "@/types";
+import { TieredHintItem, FailedTestCaseDetail, FailureDiagnosis } from "@/types";
 
 interface ProblemDetail {
   id: string; title: string; statement: string; inputFormat: string; outputFormat: string; constraintsText: string; difficulty: string; inputTemplate: string;
@@ -39,8 +39,14 @@ interface TestCaseMetrics {
 }
 
 interface SubmissionResult {
-  verdict: string; score: number; executionTimeMs: number; 
-  passedCases: number; totalCases: number; 
+  verdict: string;
+  score: number;
+  executionTimeMs: number; 
+  passedCases: number;
+  totalCases: number;
+  sampleCases?: { passed: number; total: number };
+  hiddenCases?: { passed: number; total: number };
+  failedCase?: FailedTestCaseDetail | null;
 }
 
 const themesRegistry = {
@@ -174,8 +180,14 @@ export default function ProblemWorkspaceCanvas() {
     setTestCases(evaluatedOutputsList); setExecuting(false);
   };
 
+  const [diagnosing, setDiagnosing] = useState(false);
+  const [diagnosis, setDiagnosis] = useState<FailureDiagnosis | null>(null);
+
   const handleSubmitCodeAction = async () => {
-    if (!problem) return; setSubmitting(true); setConsoleTab("result");
+    if (!problem) return;
+    setSubmitting(true);
+    setConsoleTab("result");
+    setDiagnosis(null);
     try {
       const res = await api.post("/judge/submit", { sourceCode: editorCode, language: selectedLang, problemId: problem.id });
       if (res.data?.success) {
@@ -184,10 +196,36 @@ export default function ProblemWorkspaceCanvas() {
           score: res.data.score, 
           executionTimeMs: res.data.executionTimeMs,
           passedCases: res.data.passedCases, 
-          totalCases: res.data.totalCases
+          totalCases: res.data.totalCases,
+          sampleCases: res.data.sampleCases,
+          hiddenCases: res.data.hiddenCases,
+          failedCase: res.data.failedCase
         });
       }
-    } catch { alert("Submission error. Verify session credentials."); } finally { setSubmitting(false); }
+    } catch {
+      alert("Submission error. Verify session credentials.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDiagnoseFailure = async () => {
+    if (!problem || !submissionResult?.failedCase || diagnosing) return;
+    setDiagnosing(true);
+    try {
+      const res = await api.post(`/problems/${problem.id}/diagnose-failure`, {
+        sourceCode: editorCode,
+        language: selectedLang,
+        failureContext: submissionResult.failedCase
+      });
+      if (res.data?.success && res.data.diagnosis) {
+        setDiagnosis(res.data.diagnosis);
+      }
+    } catch (err) {
+      console.error("Diagnosis error:", err);
+    } finally {
+      setDiagnosing(false);
+    }
   };
 
   const handleCreateCustomTestCase = () => {
@@ -504,16 +542,125 @@ export default function ProblemWorkspaceCanvas() {
           </div>
 
           <div className="flex-1 p-4 overflow-y-auto">
-            {/* 📊 CLEANED UP RESULT RENDERER */}
+            {/* 📊 LEETCODE STYLE RESULT & HIDDEN TEST CASE RENDERER */}
             {submissionResult && consoleTab === "result" && (
-              <div className={`p-4 rounded-xl border mb-4 ${submissionResult.verdict === "ACCEPTED" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-400"}`}>
-                <div className="flex items-center gap-2 font-bold text-sm mb-1">
-                  {submissionResult.verdict === "ACCEPTED" ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
-                  {submissionResult.verdict}
+              <div className={`p-4 rounded-xl border mb-4 font-sans ${submissionResult.verdict === "ACCEPTED" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-400"}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-bold text-sm">
+                    {submissionResult.verdict === "ACCEPTED" ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
+                    <span>{submissionResult.verdict.replace(/_/g, " ")}</span>
+                  </div>
+                  <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300">
+                    {submissionResult.executionTimeMs}ms
+                  </span>
                 </div>
-                <div className="text-xs font-semibold text-zinc-400 mt-2">
-                   Passed {submissionResult.passedCases} / {submissionResult.totalCases} Test Cases | Runtime: {submissionResult.executionTimeMs}ms | Score: {submissionResult.score} pts
+
+                <div className="text-xs font-medium text-zinc-300 mt-2 space-y-1">
+                  <div>
+                    Passed <strong className="text-white">{submissionResult.passedCases}</strong> / {submissionResult.totalCases} Total Test Cases
+                    {submissionResult.sampleCases && (
+                      <span className="text-zinc-400 ml-2">
+                        ({submissionResult.sampleCases.passed}/{submissionResult.sampleCases.total} Sample, {submissionResult.hiddenCases?.passed || 0}/{submissionResult.hiddenCases?.total || 0} Hidden)
+                      </span>
+                    )}
+                  </div>
+                  {submissionResult.failedCase && (
+                    <div className="text-rose-400 font-semibold text-xs flex items-center gap-1.5 mt-1">
+                      <span>Failed on:</span>
+                      <span className="px-1.5 py-0.5 rounded bg-rose-950/60 border border-rose-800 text-[11px] font-mono">
+                        {submissionResult.failedCase.caseType} #{submissionResult.failedCase.caseIndex} (Test Case {submissionResult.failedCase.orderNo} of {submissionResult.totalCases})
+                      </span>
+                    </div>
+                  )}
                 </div>
+
+                {/* 🔍 LEETCODE STYLE FAILING TEST CASE INSPECTOR */}
+                {submissionResult.failedCase && (
+                  <div className="mt-3.5 p-3 rounded-xl bg-zinc-950/90 border border-zinc-800 font-mono text-xs space-y-2.5">
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 border-b border-zinc-850 pb-1 flex items-center justify-between">
+                      <span>Failed Test Case Details</span>
+                      <span className="text-rose-400">{submissionResult.failedCase.verdict}</span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-0.5">Input:</span>
+                      <pre className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs whitespace-pre-wrap">{submissionResult.failedCase.input}</pre>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-rose-400 block mb-0.5">Your Output:</span>
+                        <pre className="p-2 rounded-lg bg-rose-950/30 border border-rose-900/50 text-rose-300 font-bold text-xs whitespace-pre-wrap">{submissionResult.failedCase.actualOutput}</pre>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-emerald-400 block mb-0.5">Expected Output:</span>
+                        <pre className="p-2 rounded-lg bg-emerald-950/30 border border-emerald-900/50 text-emerald-300 font-bold text-xs whitespace-pre-wrap">{submissionResult.failedCase.expectedOutput}</pre>
+                      </div>
+                    </div>
+
+                    {submissionResult.failedCase.error && (
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-amber-400 block mb-0.5">Error Message:</span>
+                        <pre className="p-2 rounded-lg bg-amber-950/30 border border-amber-900/50 text-amber-300 text-xs whitespace-pre-wrap">{submissionResult.failedCase.error}</pre>
+                      </div>
+                    )}
+
+                    {/* 💡 ASK AI: WHY DID MY CODE FAIL? BUTTON */}
+                    <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex flex-col gap-2 font-sans">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-zinc-400">Stuck? Let AI diagnose why your code failed this test case.</span>
+                        <button
+                          onClick={handleDiagnoseFailure}
+                          disabled={diagnosing}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 via-indigo-600 to-sky-600 hover:from-purple-500 hover:to-sky-500 text-white font-semibold text-xs shadow-md shadow-purple-900/30 cursor-pointer transition-all"
+                        >
+                          {diagnosing ? <Loader2 className="h-3.5 w-3.5 animate-spin text-white" /> : <Sparkles className="h-3.5 w-3.5 text-white" />}
+                          Ask AI: Why Did It Fail?
+                        </button>
+                      </div>
+
+                      {diagnosis && (
+                        <div className="p-3.5 rounded-xl border border-purple-500/40 bg-zinc-950 text-xs font-sans space-y-2.5 mt-2 animate-in fade-in duration-200">
+                          <div className="flex items-center justify-between pb-2 border-b border-purple-500/20">
+                            <span className="font-bold text-purple-300 flex items-center gap-1.5 text-xs">
+                              <Sparkles className="h-4 w-4 text-purple-400" />
+                              AI Failure Diagnosis & Approach Fix
+                            </span>
+                            <button onClick={() => setDiagnosis(null)} className="text-purple-400 hover:text-purple-200 cursor-pointer">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] uppercase font-mono font-bold text-rose-300 block">Root Cause:</span>
+                            <p className="text-zinc-200 text-xs leading-relaxed mt-0.5">{diagnosis.rootCause}</p>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] uppercase font-mono font-bold text-amber-300 block">Execution Trace on Failing Input:</span>
+                            <div className="text-zinc-300 text-xs leading-relaxed mt-0.5 whitespace-pre-wrap">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{diagnosis.traceExplanation}</ReactMarkdown>
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] uppercase font-mono font-bold text-sky-300 block">How to Fix (Algorithmic Guidance):</span>
+                            <div className="text-zinc-200 text-xs leading-relaxed mt-0.5 whitespace-pre-wrap">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{diagnosis.howToFix}</ReactMarkdown>
+                            </div>
+                          </div>
+
+                          {diagnosis.suggestedInvariant && (
+                            <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-start gap-2 text-purple-200">
+                              <Lightbulb className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
+                              <p className="text-xs leading-snug"><strong className="text-purple-300">Guiding Invariant:</strong> {diagnosis.suggestedInvariant}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

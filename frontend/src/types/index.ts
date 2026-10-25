@@ -54,3 +54,23 @@ export interface TieredHintsResponse {
   problemTitle: string;
   tiers: TieredHintItem[];
 }
+
+export interface FailedTestCaseDetail {
+  orderNo: number;
+  isSample: boolean;
+  caseType: string;
+  caseIndex: number;
+  input: string;
+  expectedOutput: string;
+  actualOutput: string;
+  stdout?: string;
+  error?: string | null;
+  verdict: string;
+}
+
+export interface FailureDiagnosis {
+  rootCause: string;
+  traceExplanation: string;
+  howToFix: string;
+  suggestedInvariant: string;
+}

@@ -298,4 +298,94 @@ ${submission.sourceCode}
       },
     });
   }
+
+  /**
+   * Diagnoses why a submission or code attempt failed a test case, explaining root cause and approach fix without spoiling code.
+   */
+  static async diagnoseFailure(
+    problemId: string,
+    sourceCode: string,
+    language: string,
+    failureContext: {
+      verdict: string;
+      input: string;
+      expectedOutput: string;
+      actualOutput: string;
+      error?: string | null;
+    }
+  ): Promise<{
+    rootCause: string;
+    traceExplanation: string;
+    howToFix: string;
+    suggestedInvariant: string;
+  }> {
+    const ai = getGenAI();
+
+    const problem = await prisma.problem.findFirst({
+      where: {
+        OR: [
+          { id: !isNaN(Number(problemId)) ? BigInt(problemId) : undefined },
+          { slug: problemId }
+        ],
+        deletedAt: null
+      }
+    });
+
+    const prompt = `You are an elite Principal Software Engineer and Technical Interview Mentor.
+A student submitted a solution on an online judge platform, and their code failed on a test case.
+Provide an insightful diagnosis of what went wrong conceptually, how the code executed on this specific input, and how to fix it without giving copy-paste code.
+
+[PROBLEM]: ${problem ? problem.title : "Algorithmic Problem"}
+[STATEMENT]: ${problem?.statement?.slice(0, 800) || "N/A"}
+[PROGRAMMING LANGUAGE]: ${language || "Python"}
+[STUDENT'S CODE]:
+${sourceCode || "(Empty)"}
+
+[EXECUTION VERDICT]: ${failureContext.verdict}
+[FAILED TESTCASE INPUT]: ${failureContext.input}
+[EXPECTED OUTPUT]: ${failureContext.expectedOutput}
+[STUDENT ACTUAL OUTPUT]: ${failureContext.actualOutput}
+[RUNTIME / STDERR]: ${failureContext.error || "None"}
+
+CRITICAL RULES:
+1. NEVER output complete functions or full replacement code solutions. The student MUST learn by applying the fix themselves.
+2. Pinpoint the exact root cause of the failure (e.g. assumption that elements are sorted, handling duplicates, off-by-one, index mutation, integer overflow, quadratic TLE, etc.).
+3. Explain the execution trace on this specific input.
+4. Provide structured, pedagogical steps on how to fix the logic.
+
+Respond STRICTLY with a valid JSON object matching this schema:
+{
+  "rootCause": "Clear, precise explanation of why the logic failed or timed out",
+  "traceExplanation": "Walkthrough of what happened when their code processed this input vs what should have happened",
+  "howToFix": "Step-by-step guidance on how to adjust their algorithm, data structures, or loop boundaries",
+  "suggestedInvariant": "1-sentence golden rule or invariant for the student to keep in mind"
+}`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.2
+      }
+    });
+
+    const raw = response.text?.trim() || "{}";
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        rootCause: parsed.rootCause || "The logic diverged from the expected invariants on this input.",
+        traceExplanation: parsed.traceExplanation || "The function evaluated the testcase input and returned an unexpected output.",
+        howToFix: parsed.howToFix || "Review your loop bounds and verify corner cases such as duplicates, zeroes, and negative numbers.",
+        suggestedInvariant: parsed.suggestedInvariant || "Ensure each element is checked against the target relationship exactly once."
+      };
+    } catch {
+      return {
+        rootCause: "The algorithm did not satisfy all constraints on this test case.",
+        traceExplanation: `Received output: ${failureContext.actualOutput}, expected: ${failureContext.expectedOutput}`,
+        howToFix: "Consider tracking previously seen elements or adjusting pointer boundaries to handle edge cases.",
+        suggestedInvariant: "Validate boundary conditions before running your main loop."
+      };
+    }
+  }
 }
