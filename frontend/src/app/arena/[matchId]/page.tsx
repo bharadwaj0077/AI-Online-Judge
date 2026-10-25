@@ -133,14 +133,27 @@ export default function ArenaLiveBattlePage() {
   const keystrokeDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem("user");
-    let currentUser = { id: `guest_${Date.now()}`, username: `Gladiator_${Math.floor(Math.random() * 900 + 100)}` };
-    if (stored) {
-      try {
-        const u = JSON.parse(stored);
-        currentUser = { id: u.id?.toString() || currentUser.id, username: u.username || u.name || currentUser.username };
-      } catch {}
+    let tabId = sessionStorage.getItem("arena_pilot_id");
+    let tabName = sessionStorage.getItem("arena_pilot_name");
+
+    if (!tabId) {
+      tabId = `pilot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      sessionStorage.setItem("arena_pilot_id", tabId);
     }
+
+    if (!tabName) {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        try {
+          const u = JSON.parse(stored);
+          tabName = u.username || u.name || "Warrior";
+        } catch {}
+      }
+      tabName = tabName || `Gladiator_${Math.floor(Math.random() * 900 + 100)}`;
+      sessionStorage.setItem("arena_pilot_name", tabName);
+    }
+
+    const currentUser = { id: tabId, username: tabName };
     setUser(currentUser);
 
     const socket = getArenaSocket();

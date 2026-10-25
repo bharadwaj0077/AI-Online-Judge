@@ -55,18 +55,28 @@ export default function ArenaLobbyPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Check logged in user or generate guest ID
-    const stored = localStorage.getItem("user");
-    if (stored) {
-      try {
-        const u = JSON.parse(stored);
-        setUser({ id: u.id?.toString() || `u_${Date.now()}`, username: u.username || u.name || "Warrior" });
-      } catch {
-        setUser({ id: `guest_${Date.now()}`, username: `Guest_${Math.floor(Math.random() * 900 + 100)}` });
-      }
-    } else {
-      setUser({ id: `guest_${Date.now()}`, username: `Gladiator_${Math.floor(Math.random() * 900 + 100)}` });
+    // Tab-isolated pilot identity (enables 2 tabs in same browser or incognito to battle on localhost)
+    let tabId = sessionStorage.getItem("arena_pilot_id");
+    let tabName = sessionStorage.getItem("arena_pilot_name");
+
+    if (!tabId) {
+      tabId = `pilot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      sessionStorage.setItem("arena_pilot_id", tabId);
     }
+
+    if (!tabName) {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        try {
+          const u = JSON.parse(stored);
+          tabName = u.username || u.name || "Warrior";
+        } catch {}
+      }
+      tabName = tabName || `Gladiator_${Math.floor(Math.random() * 900 + 100)}`;
+      sessionStorage.setItem("arena_pilot_name", tabName);
+    }
+
+    setUser({ id: tabId, username: tabName });
 
     loadRecentMatches();
 
