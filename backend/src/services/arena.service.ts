@@ -38,6 +38,8 @@ export interface ArenaMatch {
     statement: string;
     constraintsText: string;
     starterCode: string;
+    templates: Record<string, string>;
+    testCases: Array<{ id: string; orderNo: number; input: string; expectedOutput: string; isSample: boolean }>;
   };
   player1: ArenaPlayer;
   player2: ArenaPlayer;
@@ -122,13 +124,13 @@ export class ArenaService {
 
   // --- MATCHMAKING QUEUE ---
 
-  static enqueuePlayer(player: {
+  static async enqueuePlayer(player: {
     userId: string;
     username: string;
     socketId: string;
     mode: "classic" | "blitz" | "coop";
     difficulty: string;
-  }): { matched: boolean; match?: ArenaMatch; waitingCount: number } {
+  }): Promise<{ matched: boolean; match?: ArenaMatch; waitingCount: number }> {
     // Remove if already in queue
     this.matchmakingQueue = this.matchmakingQueue.filter((p) => p.userId !== player.userId);
 
@@ -139,7 +141,8 @@ export class ArenaService {
 
     if (opponentIdx !== -1) {
       const opponent = this.matchmakingQueue.splice(opponentIdx, 1)[0];
-      return { matched: true, match: this.createMatch(player, opponent, player.mode, player.difficulty), waitingCount: this.matchmakingQueue.length };
+      const match = await this.createMatchAsync(player, opponent, player.mode, player.difficulty);
+      return { matched: true, match, waitingCount: this.matchmakingQueue.length };
     }
 
     this.matchmakingQueue.push({ ...player, queuedAt: Date.now() });
@@ -205,14 +208,37 @@ export class ArenaService {
       difficulty: "EASY",
       statement: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
       constraintsText: "2 <= nums.length <= 10^4",
-      inputTemplate: '{"python3": "class Solution:\\n    def twoSum(self, nums, target):\\n        pass"}'
+      inputTemplate: '{"python3": "class Solution:\\n    def twoSum(self, nums, target):\\n        pass"}',
+      testCases: []
     };
 
-    let starterCode = "class Solution:\n    def solve(self, *args):\n        pass";
+    const defaultTemplates = {
+      python3: "class Solution:\n    def solve(self, *args):\n        # Write your code here\n        pass",
+      javascript: "class Solution {\n    solve(...args) {\n        // Write your code here\n    }\n}",
+      cpp17: "#include <vector>\n#include <string>\nusing namespace std;\n\nclass Solution {\npublic:\n    void solve() {\n        // Write your code here\n    }\n};",
+      java17: "import java.util.*;\n\nclass Solution {\n    public void solve() {\n        // Write your code here\n    }\n}"
+    };
+
+    let templates: Record<string, string> = { ...defaultTemplates };
     try {
-      const tMap = JSON.parse(selectedProb.inputTemplate || "{}");
-      starterCode = tMap.python3 || starterCode;
+      const parsed = JSON.parse(selectedProb.inputTemplate || "{}");
+      templates = { ...defaultTemplates, ...parsed };
     } catch {}
+
+    const starterCode = templates.python3 || defaultTemplates.python3;
+
+    const sampleTestCases = (selectedProb.testCases || []).map((tc: any, idx: number) => ({
+      id: tc.id ? tc.id.toString() : (idx + 1).toString(),
+      orderNo: tc.orderNo || idx + 1,
+      input: tc.input || "",
+      expectedOutput: tc.expectedOutput || "",
+      isSample: tc.isSample !== false
+    }));
+
+    const finalTestCases = sampleTestCases.length > 0 ? sampleTestCases : [
+      { id: "1", orderNo: 1, input: "[2,7,11,15], 9", expectedOutput: "[0,1]", isSample: true },
+      { id: "2", orderNo: 2, input: "[3,2,4], 6", expectedOutput: "[1,2]", isSample: true }
+    ];
 
     const durationSec = mode === "blitz" ? 300 : 600; // 5 mins for blitz, 10 mins for classic/coop
 
@@ -227,7 +253,9 @@ export class ArenaService {
         difficulty: selectedProb.difficulty,
         statement: selectedProb.statement,
         constraintsText: selectedProb.constraintsText,
-        starterCode
+        starterCode,
+        templates,
+        testCases: finalTestCases
       },
       player1: {
         userId: p1.userId,
@@ -305,7 +333,13 @@ export class ArenaService {
     difficulty: string
   ): ArenaMatch {
     const matchId = `match_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const starterCode = "class Solution:\n    def solve(self, *args):\n        pass";
+    const defaultTemplates = {
+      python3: "class Solution:\n    def solve(self, *args):\n        # Write your code here\n        pass",
+      javascript: "class Solution {\n    solve(...args) {\n        // Write your code here\n    }\n}",
+      cpp17: "#include <vector>\n#include <string>\nusing namespace std;\n\nclass Solution {\npublic:\n    void solve() {\n        // Write your code here\n    }\n};",
+      java17: "import java.util.*;\n\nclass Solution {\n    public void solve() {\n        // Write your code here\n    }\n}"
+    };
+    const starterCode = defaultTemplates.python3;
     const durationSec = mode === "blitz" ? 300 : 600;
 
     const match: ArenaMatch = {
@@ -319,7 +353,12 @@ export class ArenaService {
         difficulty: "EASY",
         statement: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
         constraintsText: "2 <= nums.length <= 10^4",
-        starterCode
+        starterCode,
+        templates: defaultTemplates,
+        testCases: [
+          { id: "1", orderNo: 1, input: "[2,7,11,15], 9", expectedOutput: "[0,1]", isSample: true },
+          { id: "2", orderNo: 2, input: "[3,2,4], 6", expectedOutput: "[1,2]", isSample: true }
+        ]
       },
       player1: {
         userId: p1.userId,
@@ -513,7 +552,38 @@ export class ArenaService {
     return match;
   }
 
-  private static persistMatch(match: ArenaMatch) {
+  private static async persistMatch(match: ArenaMatch) {
+    // 1. PostgreSQL Database (Permanent storage in online_judge_db)
+    try {
+      await prisma.arenaMatchRecord.upsert({
+        where: { id: match.id },
+        create: {
+          id: match.id,
+          mode: match.mode,
+          difficulty: match.difficulty,
+          problemId: BigInt(match.problem.id || "1"),
+          problemTitle: match.problem.title,
+          player1Data: match.player1 as any,
+          player2Data: match.player2 as any,
+          winnerName: match.decision?.winnerName || "Pending",
+          durationSec: match.durationSec,
+          startTime: new Date(match.startTime),
+          replayTimeline: match.replayTimeline as any,
+          refereeDecision: match.decision as any
+        },
+        update: {
+          player1Data: match.player1 as any,
+          player2Data: match.player2 as any,
+          winnerName: match.decision?.winnerName || "Pending",
+          replayTimeline: match.replayTimeline as any,
+          refereeDecision: match.decision as any
+        }
+      });
+    } catch (err) {
+      console.error("Failed to persist arena match to PostgreSQL database:", err);
+    }
+
+    // 2. Also keep local disk file cache
     try {
       this.initPersistence();
       let matches: any[] = [];
@@ -525,20 +595,54 @@ export class ArenaService {
         }
       }
       matches.unshift(match);
-      // Keep most recent 50 matches
-      if (matches.length > 50) matches = matches.slice(0, 50);
+      if (matches.length > 100) matches = matches.slice(0, 100);
       fs.writeFileSync(MATCHES_FILE, JSON.stringify(matches, null, 2));
     } catch (err) {
-      console.error("Failed to persist arena match:", err);
+      console.error("Failed to persist arena match to JSON file:", err);
     }
   }
 
-  static getReplay(matchId: string): ArenaMatch | null {
-    // Check in-memory first
+  static async getReplay(matchId: string): Promise<ArenaMatch | null> {
+    // 1. Check in-memory first
     if (this.activeMatches.has(matchId)) {
       return this.activeMatches.get(matchId)!;
     }
-    // Check persistent file
+
+    // 2. Check PostgreSQL Database (Permanent Storage)
+    try {
+      const dbRecord = await prisma.arenaMatchRecord.findUnique({ where: { id: matchId } });
+      if (dbRecord) {
+        return {
+          id: dbRecord.id,
+          mode: dbRecord.mode as any,
+          difficulty: dbRecord.difficulty,
+          problem: {
+            id: dbRecord.problemId.toString(),
+            title: dbRecord.problemTitle,
+            slug: "",
+            difficulty: dbRecord.difficulty,
+            statement: "",
+            constraintsText: "",
+            starterCode: "",
+            templates: {},
+            testCases: []
+          },
+          player1: dbRecord.player1Data as any,
+          player2: dbRecord.player2Data as any,
+          startTime: dbRecord.startTime.getTime(),
+          durationSec: dbRecord.durationSec,
+          status: "CONCLUDED",
+          hints: [],
+          unlockedHintTiers: [],
+          replayTimeline: dbRecord.replayTimeline as any,
+          decision: dbRecord.refereeDecision as any
+        };
+      }
+    } catch (err) {
+      console.error("Error reading replay from database:", err);
+    }
+
+    // 3. Check persistent file fallback
     try {
       if (fs.existsSync(MATCHES_FILE)) {
         const matches: ArenaMatch[] = JSON.parse(fs.readFileSync(MATCHES_FILE, "utf-8"));
@@ -548,7 +652,36 @@ export class ArenaService {
     return null;
   }
 
-  static getRecentMatches(): any[] {
+  static async getRecentMatches(): Promise<any[]> {
+    // 1. Query PostgreSQL Database (Permanent)
+    try {
+      const dbMatches = await prisma.arenaMatchRecord.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 50
+      });
+      if (dbMatches.length > 0) {
+        return dbMatches.map((m) => {
+          const p1 = m.player1Data as any;
+          const p2 = m.player2Data as any;
+          const dec = m.refereeDecision as any;
+          return {
+            id: m.id,
+            mode: m.mode,
+            difficulty: m.difficulty,
+            problemTitle: m.problemTitle,
+            player1: { username: p1?.username || "Player 1", score: dec?.scores?.player1?.totalScore || 0 },
+            player2: { username: p2?.username || "Player 2", score: dec?.scores?.player2?.totalScore || 0 },
+            winnerName: m.winnerName,
+            startTime: m.startTime.getTime(),
+            durationSec: m.durationSec
+          };
+        });
+      }
+    } catch (err) {
+      console.error("Error querying recent matches from database:", err);
+    }
+
+    // 2. Query file fallback
     try {
       if (fs.existsSync(MATCHES_FILE)) {
         const matches: ArenaMatch[] = JSON.parse(fs.readFileSync(MATCHES_FILE, "utf-8"));

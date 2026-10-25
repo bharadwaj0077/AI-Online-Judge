@@ -244,3 +244,21 @@ model ContestProblem {
   @@unique([contestId, problemId])
   @@map("contest_problems")
 }
+
+model ArenaMatchRecord {
+  id              String   @id @map("id")
+  mode            String   @map("mode")
+  difficulty      String   @map("difficulty")
+  problemId       BigInt   @map("problem_id")
+  problemTitle    String   @map("problem_title")
+  player1Data     Json     @map("player1_data")
+  player2Data     Json     @map("player2_data")
+  winnerName      String   @map("winner_name")
+  durationSec     Int      @map("duration_sec")
+  startTime       DateTime @map("start_time")
+  replayTimeline  Json     @map("replay_timeline")
+  refereeDecision Json?    @map("referee_decision")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("arena_matches")
+}

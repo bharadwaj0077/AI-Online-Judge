@@ -1,5 +1,1264 @@
 [
   {
+    "id": "match_1792958371324_drpg3",
+    "mode": "classic",
+    "difficulty": "EASY",
+    "problem": {
+      "id": "1",
+      "title": "Two Sum",
+      "slug": "two-sum",
+      "difficulty": "EASY",
+      "statement": "Given an array of integers `nums` and an integer `target`, return *indices of the two numbers such that they add up to `target`*.\n\nYou may assume that each input would have ***exactly* one solution**, and you may not use the same element twice.\n\n### Example 1:\n**Input:** nums = [2,7,11,15], target = 9  \n**Output:** [0,1]  \n**Explanation:** Because nums[0] + nums[1] == 9, we return [0, 1].\n\n### Constraints:\n* `2 <= nums.length <= 10^4`\n* `-10^9 <= nums[i] <= 10^9`",
+      "constraintsText": "2 <= nums.length <= 10^4, -10^9 <= nums[i] <= 10^9",
+      "starterCode": "class Solution:\n    def twoSum(self, nums: list[int], target: int) -> list[int]:\n        # Write optimal solution here\n        pass",
+      "templates": {
+        "python3": "class Solution:\n    def twoSum(self, nums: list[int], target: int) -> list[int]:\n        # Write optimal solution here\n        pass",
+        "javascript": "class Solution {\n    twoSum(nums, target) {\n        return [];\n    }\n}",
+        "cpp17": "#include <iostream>\n#include <vector>\nusing namespace std;\nclass Solution {\npublic:\n    vector<int> twoSum(vector<int>& nums, int target) {\n        return {};\n    }\n};",
+        "java17": "import java.util.*;\nclass Solution {\n    public int[] twoSum(int[] nums, int target) {\n        return new int[]{0, 0};\n    }\n}",
+        "c11": "#include <stdio.h>\n#include <stdlib.h>\nint* twoSum(int* nums, int numsSize, int target, int* returnSize) {\n    *returnSize = 2;\n    int* res = (int*)malloc(2 * sizeof(int));\n    return res;\n}"
+      },
+      "testCases": [
+        {
+          "id": "1051",
+          "orderNo": 1,
+          "input": "[2,7,11,15], 9",
+          "expectedOutput": "[0,1]",
+          "isSample": true
+        },
+        {
+          "id": "1052",
+          "orderNo": 2,
+          "input": "[3,2,4], 6",
+          "expectedOutput": "[1,2]",
+          "isSample": true
+        }
+      ]
+    },
+    "player1": {
+      "userId": "user_test_p1",
+      "username": "AlphaWarrior",
+      "socketId": "g9COmTEVOJb9G3FqAAAC",
+      "code": "class Solution:\n    def solve(self, nums, target):\n        lookup = {}\n        for i, num in enumerate(nums):\n            diff = target - num\n            if diff in lookup:\n                return [lookup[diff], i]\n            lookup[num] = i\n        return []",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 10,
+      "totalCases": 10,
+      "verdict": "ACCEPTED",
+      "executionTimeMs": 45,
+      "antiCheatWarnings": 1
+    },
+    "player2": {
+      "userId": "user_test_p2",
+      "username": "BetaGladiator",
+      "socketId": "G1e6ouQ1fHEyUEsFAAAD",
+      "code": "class Solution:\n    def solve(self, nums, target):\n        for i in range(len(nums)):\n            for j in range(i + 1, len(nums)):\n                if nums[i] + nums[j] == target:\n                    return [i, j]\n        return []",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 10,
+      "totalCases": 10,
+      "verdict": "ACCEPTED",
+      "executionTimeMs": 180,
+      "antiCheatWarnings": 0,
+      "isAiBot": false
+    },
+    "startTime": 1792958371350,
+    "durationSec": 600,
+    "status": "CONCLUDED",
+    "hints": [
+      {
+        "tier": 1,
+        "title": "Observation & Invariants",
+        "content": "Observe the input constraints of \"Two Sum\". Analyze whether scanning all combinations exceeds time bounds.",
+        "keyTakeaway": "Trade space for linear lookup time.",
+        "triggerPercent": 25
+      },
+      {
+        "tier": 2,
+        "title": "Optimal Data Structure",
+        "content": "Consider using a Hash Map or Two-Pointer approach to eliminate repeated inner loops.",
+        "keyTakeaway": "Look up previously encountered complements in O(1) time.",
+        "triggerPercent": 50
+      },
+      {
+        "tier": 3,
+        "title": "Edge Cases & Boundaries",
+        "content": "Watch out for duplicate values, negative numbers, and boundary indexing.",
+        "keyTakeaway": "Test against identical values summing to target.",
+        "triggerPercent": 75
+      }
+    ],
+    "unlockedHintTiers": [],
+    "replayTimeline": [
+      {
+        "t": 0,
+        "type": "match_start",
+        "userId": "SYSTEM",
+        "data": {
+          "matchId": "match_1792958371324_drpg3",
+          "mode": "classic",
+          "problemTitle": "Two Sum"
+        }
+      },
+      {
+        "type": "code_update",
+        "userId": "user_test_p1",
+        "data": {
+          "code": "class Solution:\n    def solve(self):\n        return True\n",
+          "charCount": 57,
+          "lineCount": 4
+        },
+        "t": 985
+      },
+      {
+        "type": "paste_warning",
+        "userId": "user_test_p1",
+        "data": {
+          "reason": "Massive clipboard paste detected (300 characters). Malpractice penalty logged.",
+          "totalWarnings": 1
+        },
+        "t": 1588
+      },
+      {
+        "type": "code_update",
+        "userId": "user_test_p1",
+        "data": {
+          "code": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "charCount": 300,
+          "lineCount": 1
+        },
+        "t": 1588
+      },
+      {
+        "type": "submit_attempt",
+        "userId": "user_test_p1",
+        "data": {
+          "verdict": "ACCEPTED",
+          "passedCases": 10,
+          "totalCases": 10,
+          "executionTimeMs": 45
+        },
+        "t": 3404
+      },
+      {
+        "type": "submit_attempt",
+        "userId": "user_test_p2",
+        "data": {
+          "verdict": "ACCEPTED",
+          "passedCases": 10,
+          "totalCases": 10,
+          "executionTimeMs": 180
+        },
+        "t": 3404
+      },
+      {
+        "type": "match_end",
+        "userId": "REFEREE",
+        "data": {
+          "winnerId": "user_test_p2",
+          "winnerName": "BetaGladiator",
+          "reason": "BetaGladiator won with higher testcase pass rates and code cleanliness."
+        },
+        "t": 5542
+      }
+    ],
+    "decision": {
+      "winnerId": "user_test_p2",
+      "winnerName": "BetaGladiator",
+      "reason": "BetaGladiator won with higher testcase pass rates and code cleanliness.",
+      "scores": {
+        "player1": {
+          "correctness": 40,
+          "efficiency": 22,
+          "cleanliness": 17,
+          "speedAndConduct": 10,
+          "totalScore": 89,
+          "timeComplexity": "O(N)",
+          "spaceComplexity": "O(1)"
+        },
+        "player2": {
+          "correctness": 40,
+          "efficiency": 22,
+          "cleanliness": 17,
+          "speedAndConduct": 15,
+          "totalScore": 94,
+          "timeComplexity": "O(N)",
+          "spaceComplexity": "O(1)"
+        }
+      },
+      "commentary": "### Grandmaster AI Match Breakdown\n**AlphaWarrior**:\n- Scored **89/100** points (40/40 on test cases, 22/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `ACCEPTED`.\n\n**BetaGladiator**:\n- Scored **94/100** points (40/40 on test cases, 22/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `ACCEPTED`.\n\n**Decision Verdict**: Congratulations to **BetaGladiator** for taking the match victory with optimal problem structure and disciplined conduct."
+    }
+  },
+  {
+    "id": "match_1792957538117_flvw1",
+    "mode": "classic",
+    "difficulty": "ANY",
+    "problem": {
+      "id": "1",
+      "title": "Two Sum",
+      "slug": "two-sum",
+      "difficulty": "EASY",
+      "statement": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+      "constraintsText": "2 <= nums.length <= 10^4",
+      "starterCode": "class Solution:\n    def solve(self, *args):\n        pass"
+    },
+    "player1": {
+      "userId": "pilot_1792957471642_916d",
+      "username": "Gladiator_933",
+      "socketId": "D7_1jFTh6yileRgYAAAR",
+      "code": "class Solution:\n    def solve(self, *args):\n        ",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 0,
+      "totalCases": 0,
+      "verdict": "PENDING",
+      "executionTimeMs": 0,
+      "antiCheatWarnings": 0
+    },
+    "player2": {
+      "userId": "2",
+      "username": "coder_77",
+      "socketId": "wWr7oVR7I7yvx9QfAAAH",
+      "code": "class Solution:\n    def solve(self, *args): \n        print(\"hi\")",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 0,
+      "totalCases": 10,
+      "verdict": "WRONG_ANSWER",
+      "executionTimeMs": 386,
+      "antiCheatWarnings": 0
+    },
+    "startTime": 1792957538117,
+    "durationSec": 600,
+    "status": "CONCLUDED",
+    "hints": [
+      {
+        "tier": 1,
+        "title": "Observation & Invariants",
+        "content": "Observe the input constraints. Analyze whether checking all combinations exceeds time limits.",
+        "keyTakeaway": "Trade space for fast lookup time.",
+        "triggerPercent": 25
+      },
+      {
+        "tier": 2,
+        "title": "Optimal Data Structure",
+        "content": "Use a Hash Map to store elements as you iterate, checking if the complement exists.",
+        "keyTakeaway": "O(N) single-pass hash map pattern.",
+        "triggerPercent": 50
+      },
+      {
+        "tier": 3,
+        "title": "Edge Cases & Boundaries",
+        "content": "Beware of using the exact same element twice or handling negative values.",
+        "keyTakeaway": "Store seen items after complement checking.",
+        "triggerPercent": 75
+      }
+    ],
+    "unlockedHintTiers": [
+      1
+    ],
+    "replayTimeline": [
+      {
+        "t": 0,
+        "type": "match_start",
+        "userId": "SYSTEM",
+        "data": {
+          "matchId": "match_1792957538117_flvw1",
+          "mode": "classic",
+          "problemTitle": "Two Sum"
+        }
+      },
+      {
+        "type": "code_update",
+        "userId": "2",
+        "data": {
+          "code": "class Solution:\n    def solve(self, *args):",
+          "charCount": 43,
+          "lineCount": 2
+        },
+        "t": 21320
+      },
+      {
+        "type": "code_update",
+        "userId": "2",
+        "data": {
+          "code": "class Solution:\n    def solve(self, *args): ",
+          "charCount": 44,
+          "lineCount": 2
+        },
+        "t": 21758
+      },
+      {
+        "type": "code_update",
+        "userId": "2",
+        "data": {
+          "code": "class Solution:\n    def solve(self, *args): \n        ",
+          "charCount": 53,
+          "lineCount": 3
+        },
+        "t": 22310
+      },
+      {
+        "type": "code_update",
+        "userId": "2",
+        "data": {
+          "code": "class Solution:\n    def solve(self, *args): \n        print(\"hi\")",
+          "charCount": 64,
+          "lineCount": 3
+        },
+        "t": 24492
+      },
+      {
+        "type": "code_update",
+        "userId": "pilot_1792957471642_916d",
+        "data": {
+          "code": "class Solution:\n    def solve(self, *args):\n        ",
+          "charCount": 52,
+          "lineCount": 3
+        },
+        "t": 29154
+      },
+      {
+        "type": "code_update",
+        "userId": "pilot_1792957471642_916d",
+        "data": {
+          "code": "class Solution:\n    def solve(self, *args):\n        print",
+          "charCount": 57,
+          "lineCount": 3
+        },
+        "t": 30119
+      },
+      {
+        "type": "code_update",
+        "userId": "pilot_1792957471642_916d",
+        "data": {
+          "code": "class Solution:\n    def solve(self, *args):\n        print(\"he\")",
+          "charCount": 63,
+          "lineCount": 3
+        },
+        "t": 31124
+      },
+      {
+        "type": "code_update",
+        "userId": "pilot_1792957471642_916d",
+        "data": {
+          "code": "class Solution:\n    def solve(self, *args):\n        print(\"helllo\")",
+          "charCount": 67,
+          "lineCount": 3
+        },
+        "t": 31915
+      },
+      {
+        "type": "run_tests",
+        "userId": "2",
+        "data": {
+          "language": "python3"
+        },
+        "t": 39105
+      },
+      {
+        "type": "run_tests",
+        "userId": "2",
+        "data": {
+          "language": "python3"
+        },
+        "t": 41780
+      },
+      {
+        "type": "run_tests",
+        "userId": "2",
+        "data": {
+          "language": "python3"
+        },
+        "t": 43452
+      },
+      {
+        "type": "submit_attempt",
+        "userId": "2",
+        "data": {
+          "verdict": "WRONG_ANSWER",
+          "passedCases": 0,
+          "totalCases": 10,
+          "executionTimeMs": 386
+        },
+        "t": 44763
+      },
+      {
+        "type": "run_tests",
+        "userId": "pilot_1792957471642_916d",
+        "data": {
+          "language": "python3"
+        },
+        "t": 56811
+      },
+      {
+        "type": "run_tests",
+        "userId": "pilot_1792957471642_916d",
+        "data": {
+          "language": "python3"
+        },
+        "t": 64547
+      },
+      {
+        "type": "run_tests",
+        "userId": "pilot_1792957471642_916d",
+        "data": {
+          "language": "python3"
+        },
+        "t": 65418
+      },
+      {
+        "type": "code_update",
+        "userId": "pilot_1792957471642_916d",
+        "data": {
+          "code": "class Solution:\n    def solve(self, *args):\n        ",
+          "charCount": 52,
+          "lineCount": 3
+        },
+        "t": 70269
+      },
+      {
+        "type": "hint_unlocked",
+        "userId": "AI_ORCHESTRATOR",
+        "data": {
+          "tier": 1,
+          "title": "Observation & Invariants",
+          "content": "Observe the input constraints. Analyze whether checking all combinations exceeds time limits.",
+          "keyTakeaway": "Trade space for fast lookup time.",
+          "triggerPercent": 25
+        },
+        "t": 150610
+      },
+      {
+        "type": "match_end",
+        "userId": "REFEREE",
+        "data": {
+          "winnerId": "DRAW",
+          "winnerName": "Draw (Tie Game)",
+          "reason": "Both players scored identically across testcase accuracy and code analysis."
+        },
+        "t": 151871
+      }
+    ],
+    "decision": {
+      "winnerId": "DRAW",
+      "winnerName": "Draw (Tie Game)",
+      "reason": "Both players scored identically across testcase accuracy and code analysis.",
+      "scores": {
+        "player1": {
+          "correctness": 0,
+          "efficiency": 0,
+          "cleanliness": 17,
+          "speedAndConduct": 15,
+          "totalScore": 32,
+          "timeComplexity": "O(N^2)",
+          "spaceComplexity": "O(N)"
+        },
+        "player2": {
+          "correctness": 0,
+          "efficiency": 0,
+          "cleanliness": 17,
+          "speedAndConduct": 15,
+          "totalScore": 32,
+          "timeComplexity": "O(N^2)",
+          "spaceComplexity": "O(N)"
+        }
+      },
+      "commentary": "### Grandmaster AI Match Breakdown\n**Gladiator_933**:\n- Scored **32/100** points (0/40 on test cases, 0/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `PENDING`.\n\n**coder_77**:\n- Scored **32/100** points (0/40 on test cases, 0/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `WRONG_ANSWER`.\n\n**Decision Verdict**: Both developers achieved equal performance, resulting in a technical draw."
+    }
+  },
+  {
+    "id": "match_1792956884434_dm95h",
+    "mode": "blitz",
+    "difficulty": "EASY",
+    "problem": {
+      "id": "6",
+      "title": "Contains Duplicate",
+      "slug": "contains-duplicate",
+      "difficulty": "EASY",
+      "statement": "Given an integer array `nums`, return `true` if any value appears at least twice in the array, and return `false` if every element is distinct.",
+      "constraintsText": "1 <= nums.length <= 10^5\n-10^9 <= nums[i] <= 10^9",
+      "starterCode": "class Solution:\n    def containsDuplicate(self, nums: list[int]) -> bool:\n        pass"
+    },
+    "player1": {
+      "userId": "solo_human_user",
+      "username": "SoloPilot",
+      "socketId": "AZcstsGb7yo0buC5AAAN",
+      "code": "class Solution:\n    def containsDuplicate(self, nums: list[int]) -> bool:\n        pass",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 0,
+      "totalCases": 0,
+      "verdict": "PENDING",
+      "executionTimeMs": 0,
+      "antiCheatWarnings": 0
+    },
+    "player2": {
+      "userId": "ai_bot_1792956884434",
+      "username": "CyberGrandmaster_AI",
+      "socketId": "socket_ai_bot",
+      "code": "class Solution:\n    def solve(self, nums, target):\n        seen = {}\n        for i, n in enumerate(nums):\n            comp = target - n\n            if comp in seen:\n                return [seen[comp], i]\n            seen[n] = i\n        return []",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 8,
+      "totalCases": 8,
+      "verdict": "ACCEPTED",
+      "executionTimeMs": 42,
+      "antiCheatWarnings": 0,
+      "isAiBot": true
+    },
+    "startTime": 1792956884436,
+    "durationSec": 300,
+    "status": "CONCLUDED",
+    "hints": [
+      {
+        "tier": 1,
+        "title": "Observation & Invariants",
+        "content": "Observe the input constraints of \"Contains Duplicate\". Analyze whether scanning all combinations exceeds time bounds.",
+        "keyTakeaway": "Trade space for linear lookup time.",
+        "triggerPercent": 25
+      },
+      {
+        "tier": 2,
+        "title": "Optimal Data Structure",
+        "content": "Consider using a Hash Map or Two-Pointer approach to eliminate repeated inner loops.",
+        "keyTakeaway": "Look up previously encountered complements in O(1) time.",
+        "triggerPercent": 50
+      },
+      {
+        "tier": 3,
+        "title": "Edge Cases & Boundaries",
+        "content": "Watch out for duplicate values, negative numbers, and boundary indexing.",
+        "keyTakeaway": "Test against identical values summing to target.",
+        "triggerPercent": 75
+      }
+    ],
+    "unlockedHintTiers": [
+      1,
+      2,
+      3
+    ],
+    "replayTimeline": [
+      {
+        "t": 0,
+        "type": "match_start",
+        "userId": "SYSTEM",
+        "data": {
+          "matchId": "match_1792956884434_dm95h",
+          "mode": "blitz",
+          "problemTitle": "Contains Duplicate"
+        }
+      },
+      {
+        "type": "code_update",
+        "userId": "ai_bot_1792956884434",
+        "data": {
+          "code": "class Solution:\n    def solve(self, nums, target):\n        # Hash map two-pass\n        seen = {}\n",
+          "charCount": 97,
+          "lineCount": 5
+        },
+        "t": 5015
+      },
+      {
+        "type": "code_update",
+        "userId": "ai_bot_1792956884434",
+        "data": {
+          "code": "class Solution:\n    def solve(self, nums, target):\n        # Hash map two-pass\n        seen = {}\n        for i, n in enumerate(nums):\n            comp = target - n\n",
+          "charCount": 164,
+          "lineCount": 7
+        },
+        "t": 10025
+      },
+      {
+        "type": "code_update",
+        "userId": "ai_bot_1792956884434",
+        "data": {
+          "code": "class Solution:\n    def solve(self, nums, target):\n        seen = {}\n        for i, n in enumerate(nums):\n            comp = target - n\n            if comp in seen:\n                return [seen[comp], i]\n            seen[n] = i\n        return []",
+          "charCount": 245,
+          "lineCount": 9
+        },
+        "t": 15031
+      },
+      {
+        "type": "submit_attempt",
+        "userId": "ai_bot_1792956884434",
+        "data": {
+          "verdict": "ACCEPTED",
+          "passedCases": 8,
+          "totalCases": 8
+        },
+        "t": 20040
+      },
+      {
+        "type": "hint_unlocked",
+        "userId": "AI_ORCHESTRATOR",
+        "data": {
+          "tier": 1,
+          "title": "Observation & Invariants",
+          "content": "Observe the input constraints of \"Contains Duplicate\". Analyze whether scanning all combinations exceeds time bounds.",
+          "keyTakeaway": "Trade space for linear lookup time.",
+          "triggerPercent": 25
+        },
+        "t": 76269
+      },
+      {
+        "type": "hint_unlocked",
+        "userId": "AI_ORCHESTRATOR",
+        "data": {
+          "tier": 2,
+          "title": "Optimal Data Structure",
+          "content": "Consider using a Hash Map or Two-Pointer approach to eliminate repeated inner loops.",
+          "keyTakeaway": "Look up previously encountered complements in O(1) time.",
+          "triggerPercent": 50
+        },
+        "t": 150495
+      },
+      {
+        "type": "hint_unlocked",
+        "userId": "AI_ORCHESTRATOR",
+        "data": {
+          "tier": 3,
+          "title": "Edge Cases & Boundaries",
+          "content": "Watch out for duplicate values, negative numbers, and boundary indexing.",
+          "keyTakeaway": "Test against identical values summing to target.",
+          "triggerPercent": 75
+        },
+        "t": 226731
+      },
+      {
+        "type": "match_end",
+        "userId": "REFEREE",
+        "data": {
+          "winnerId": "ai_bot_1792956884434",
+          "winnerName": "CyberGrandmaster_AI",
+          "reason": "CyberGrandmaster_AI won with higher testcase pass rates and code cleanliness."
+        },
+        "t": 301756
+      }
+    ],
+    "decision": {
+      "winnerId": "ai_bot_1792956884434",
+      "winnerName": "CyberGrandmaster_AI",
+      "reason": "CyberGrandmaster_AI won with higher testcase pass rates and code cleanliness.",
+      "scores": {
+        "player1": {
+          "correctness": 0,
+          "efficiency": 0,
+          "cleanliness": 17,
+          "speedAndConduct": 15,
+          "totalScore": 32,
+          "timeComplexity": "O(N^2)",
+          "spaceComplexity": "O(N)"
+        },
+        "player2": {
+          "correctness": 40,
+          "efficiency": 22,
+          "cleanliness": 17,
+          "speedAndConduct": 15,
+          "totalScore": 94,
+          "timeComplexity": "O(N)",
+          "spaceComplexity": "O(1)"
+        }
+      },
+      "commentary": "### Grandmaster AI Match Breakdown\n**SoloPilot**:\n- Scored **32/100** points (0/40 on test cases, 0/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `PENDING`.\n\n**CyberGrandmaster_AI**:\n- Scored **94/100** points (40/40 on test cases, 22/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `ACCEPTED`.\n\n**Decision Verdict**: Congratulations to **CyberGrandmaster_AI** for taking the match victory with optimal problem structure and disciplined conduct."
+    }
+  },
+  {
+    "id": "match_1792956663136_o3tdm",
+    "mode": "blitz",
+    "difficulty": "EASY",
+    "problem": {
+      "id": "5",
+      "title": "Best Time to Buy and Sell Stock",
+      "slug": "best-time-to-buy-and-sell-stock",
+      "difficulty": "EASY",
+      "statement": "You are given an array `prices` where `prices[i]` is the price of a given stock on the i-th day. Return the maximum profit you can achieve from a single transaction.",
+      "constraintsText": "1 <= prices.length <= 10^5\n0 <= prices[i] <= 10^4",
+      "starterCode": "class Solution:\n    def maxProfit(self, prices: list[int]) -> int:\n        pass"
+    },
+    "player1": {
+      "userId": "2",
+      "username": "coder_77",
+      "socketId": "wWr7oVR7I7yvx9QfAAAH",
+      "code": "class Solution:\n    def maxProfit(self, prices: list[int]) -> int:\n        pass",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 0,
+      "totalCases": 0,
+      "verdict": "PENDING",
+      "executionTimeMs": 0,
+      "antiCheatWarnings": 0
+    },
+    "player2": {
+      "userId": "ai_bot_1792956663136",
+      "username": "CyberGrandmaster_AI",
+      "socketId": "socket_ai_bot",
+      "code": "class Solution:\n    def solve(self, nums, target):\n        seen = {}\n        for i, n in enumerate(nums):\n            comp = target - n\n            if comp in seen:\n                return [seen[comp], i]\n            seen[n] = i\n        return []",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 8,
+      "totalCases": 8,
+      "verdict": "ACCEPTED",
+      "executionTimeMs": 42,
+      "antiCheatWarnings": 0,
+      "isAiBot": true
+    },
+    "startTime": 1792956663291,
+    "durationSec": 300,
+    "status": "CONCLUDED",
+    "hints": [
+      {
+        "tier": 1,
+        "title": "Observation & Invariants",
+        "content": "Observe the input constraints of \"Best Time to Buy and Sell Stock\". Analyze whether scanning all combinations exceeds time bounds.",
+        "keyTakeaway": "Trade space for linear lookup time.",
+        "triggerPercent": 25
+      },
+      {
+        "tier": 2,
+        "title": "Optimal Data Structure",
+        "content": "Consider using a Hash Map or Two-Pointer approach to eliminate repeated inner loops.",
+        "keyTakeaway": "Look up previously encountered complements in O(1) time.",
+        "triggerPercent": 50
+      },
+      {
+        "tier": 3,
+        "title": "Edge Cases & Boundaries",
+        "content": "Watch out for duplicate values, negative numbers, and boundary indexing.",
+        "keyTakeaway": "Test against identical values summing to target.",
+        "triggerPercent": 75
+      }
+    ],
+    "unlockedHintTiers": [
+      1,
+      2,
+      3
+    ],
+    "replayTimeline": [
+      {
+        "t": 0,
+        "type": "match_start",
+        "userId": "SYSTEM",
+        "data": {
+          "matchId": "match_1792956663136_o3tdm",
+          "mode": "blitz",
+          "problemTitle": "Best Time to Buy and Sell Stock"
+        }
+      },
+      {
+        "type": "code_update",
+        "userId": "ai_bot_1792956663136",
+        "data": {
+          "code": "class Solution:\n    def solve(self, nums, target):\n        # Hash map two-pass\n        seen = {}\n",
+          "charCount": 97,
+          "lineCount": 5
+        },
+        "t": 5014
+      },
+      {
+        "type": "code_update",
+        "userId": "ai_bot_1792956663136",
+        "data": {
+          "code": "class Solution:\n    def solve(self, nums, target):\n        # Hash map two-pass\n        seen = {}\n        for i, n in enumerate(nums):\n            comp = target - n\n",
+          "charCount": 164,
+          "lineCount": 7
+        },
+        "t": 10016
+      },
+      {
+        "type": "code_update",
+        "userId": "ai_bot_1792956663136",
+        "data": {
+          "code": "class Solution:\n    def solve(self, nums, target):\n        seen = {}\n        for i, n in enumerate(nums):\n            comp = target - n\n            if comp in seen:\n                return [seen[comp], i]\n            seen[n] = i\n        return []",
+          "charCount": 245,
+          "lineCount": 9
+        },
+        "t": 15024
+      },
+      {
+        "type": "submit_attempt",
+        "userId": "ai_bot_1792956663136",
+        "data": {
+          "verdict": "ACCEPTED",
+          "passedCases": 8,
+          "totalCases": 8
+        },
+        "t": 20040
+      },
+      {
+        "type": "hint_unlocked",
+        "userId": "AI_ORCHESTRATOR",
+        "data": {
+          "tier": 1,
+          "title": "Observation & Invariants",
+          "content": "Observe the input constraints of \"Best Time to Buy and Sell Stock\". Analyze whether scanning all combinations exceeds time bounds.",
+          "keyTakeaway": "Trade space for linear lookup time.",
+          "triggerPercent": 25
+        },
+        "t": 76361
+      },
+      {
+        "type": "hint_unlocked",
+        "userId": "AI_ORCHESTRATOR",
+        "data": {
+          "tier": 2,
+          "title": "Optimal Data Structure",
+          "content": "Consider using a Hash Map or Two-Pointer approach to eliminate repeated inner loops.",
+          "keyTakeaway": "Look up previously encountered complements in O(1) time.",
+          "triggerPercent": 50
+        },
+        "t": 150711
+      },
+      {
+        "type": "hint_unlocked",
+        "userId": "AI_ORCHESTRATOR",
+        "data": {
+          "tier": 3,
+          "title": "Edge Cases & Boundaries",
+          "content": "Watch out for duplicate values, negative numbers, and boundary indexing.",
+          "keyTakeaway": "Test against identical values summing to target.",
+          "triggerPercent": 75
+        },
+        "t": 226937
+      },
+      {
+        "type": "match_end",
+        "userId": "REFEREE",
+        "data": {
+          "winnerId": "ai_bot_1792956663136",
+          "winnerName": "CyberGrandmaster_AI",
+          "reason": "CyberGrandmaster_AI won with higher testcase pass rates and code cleanliness."
+        },
+        "t": 302009
+      }
+    ],
+    "decision": {
+      "winnerId": "ai_bot_1792956663136",
+      "winnerName": "CyberGrandmaster_AI",
+      "reason": "CyberGrandmaster_AI won with higher testcase pass rates and code cleanliness.",
+      "scores": {
+        "player1": {
+          "correctness": 0,
+          "efficiency": 0,
+          "cleanliness": 17,
+          "speedAndConduct": 15,
+          "totalScore": 32,
+          "timeComplexity": "O(N^2)",
+          "spaceComplexity": "O(N)"
+        },
+        "player2": {
+          "correctness": 40,
+          "efficiency": 22,
+          "cleanliness": 17,
+          "speedAndConduct": 15,
+          "totalScore": 94,
+          "timeComplexity": "O(N)",
+          "spaceComplexity": "O(1)"
+        }
+      },
+      "commentary": "### Grandmaster AI Match Breakdown\n**coder_77**:\n- Scored **32/100** points (0/40 on test cases, 0/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `PENDING`.\n\n**CyberGrandmaster_AI**:\n- Scored **94/100** points (40/40 on test cases, 22/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `ACCEPTED`.\n\n**Decision Verdict**: Congratulations to **CyberGrandmaster_AI** for taking the match victory with optimal problem structure and disciplined conduct."
+    }
+  },
+  {
+    "id": "match_1792956882218_aqnvz",
+    "mode": "classic",
+    "difficulty": "EASY",
+    "problem": {
+      "id": "3",
+      "title": "Palindrome Number",
+      "slug": "palindrome-number",
+      "difficulty": "EASY",
+      "statement": "Given an integer `x`, return `true` if `x` is a palindrome, and `false` otherwise.",
+      "constraintsText": "-2^31 <= x <= 2^31 - 1",
+      "starterCode": "class Solution:\n    def isPalindrome(self, x: int) -> bool:\n        pass"
+    },
+    "player1": {
+      "userId": "user_test_p1",
+      "username": "AlphaWarrior",
+      "socketId": "_PqFkv4BGyOm4CyaAAAK",
+      "code": "class Solution:\n    def solve(self, nums, target):\n        lookup = {}\n        for i, num in enumerate(nums):\n            diff = target - num\n            if diff in lookup:\n                return [lookup[diff], i]\n            lookup[num] = i\n        return []",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 10,
+      "totalCases": 10,
+      "verdict": "ACCEPTED",
+      "executionTimeMs": 45,
+      "antiCheatWarnings": 1
+    },
+    "player2": {
+      "userId": "user_test_p2",
+      "username": "BetaGladiator",
+      "socketId": "cl0wWYXqD_Qn2_7OAAAL",
+      "code": "class Solution:\n    def solve(self, nums, target):\n        for i in range(len(nums)):\n            for j in range(i + 1, len(nums)):\n                if nums[i] + nums[j] == target:\n                    return [i, j]\n        return []",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 10,
+      "totalCases": 10,
+      "verdict": "ACCEPTED",
+      "executionTimeMs": 180,
+      "antiCheatWarnings": 0,
+      "isAiBot": false
+    },
+    "startTime": 1792956882270,
+    "durationSec": 600,
+    "status": "CONCLUDED",
+    "hints": [
+      {
+        "tier": 1,
+        "title": "Observation & Invariants",
+        "content": "Observe the input constraints of \"Palindrome Number\". Analyze whether scanning all combinations exceeds time bounds.",
+        "keyTakeaway": "Trade space for linear lookup time.",
+        "triggerPercent": 25
+      },
+      {
+        "tier": 2,
+        "title": "Optimal Data Structure",
+        "content": "Consider using a Hash Map or Two-Pointer approach to eliminate repeated inner loops.",
+        "keyTakeaway": "Look up previously encountered complements in O(1) time.",
+        "triggerPercent": 50
+      },
+      {
+        "tier": 3,
+        "title": "Edge Cases & Boundaries",
+        "content": "Watch out for duplicate values, negative numbers, and boundary indexing.",
+        "keyTakeaway": "Test against identical values summing to target.",
+        "triggerPercent": 75
+      }
+    ],
+    "unlockedHintTiers": [],
+    "replayTimeline": [
+      {
+        "t": 0,
+        "type": "match_start",
+        "userId": "SYSTEM",
+        "data": {
+          "matchId": "match_1792956882218_aqnvz",
+          "mode": "classic",
+          "problemTitle": "Palindrome Number"
+        }
+      },
+      {
+        "type": "code_update",
+        "userId": "user_test_p1",
+        "data": {
+          "code": "class Solution:\n    def solve(self):\n        return True\n",
+          "charCount": 57,
+          "lineCount": 4
+        },
+        "t": 952
+      },
+      {
+        "type": "paste_warning",
+        "userId": "user_test_p1",
+        "data": {
+          "reason": "Massive clipboard paste detected (300 characters). Malpractice penalty logged.",
+          "totalWarnings": 1
+        },
+        "t": 1554
+      },
+      {
+        "type": "code_update",
+        "userId": "user_test_p1",
+        "data": {
+          "code": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "charCount": 300,
+          "lineCount": 1
+        },
+        "t": 1554
+      },
+      {
+        "type": "submit_attempt",
+        "userId": "user_test_p1",
+        "data": {
+          "verdict": "ACCEPTED",
+          "passedCases": 10,
+          "totalCases": 10,
+          "executionTimeMs": 45
+        },
+        "t": 3378
+      },
+      {
+        "type": "submit_attempt",
+        "userId": "user_test_p2",
+        "data": {
+          "verdict": "ACCEPTED",
+          "passedCases": 10,
+          "totalCases": 10,
+          "executionTimeMs": 180
+        },
+        "t": 3378
+      },
+      {
+        "type": "match_end",
+        "userId": "REFEREE",
+        "data": {
+          "winnerId": "user_test_p2",
+          "winnerName": "BetaGladiator",
+          "reason": "BetaGladiator won with higher testcase pass rates and code cleanliness."
+        },
+        "t": 5009
+      }
+    ],
+    "decision": {
+      "winnerId": "user_test_p2",
+      "winnerName": "BetaGladiator",
+      "reason": "BetaGladiator won with higher testcase pass rates and code cleanliness.",
+      "scores": {
+        "player1": {
+          "correctness": 40,
+          "efficiency": 22,
+          "cleanliness": 17,
+          "speedAndConduct": 10,
+          "totalScore": 89,
+          "timeComplexity": "O(N)",
+          "spaceComplexity": "O(1)"
+        },
+        "player2": {
+          "correctness": 40,
+          "efficiency": 22,
+          "cleanliness": 17,
+          "speedAndConduct": 15,
+          "totalScore": 94,
+          "timeComplexity": "O(N)",
+          "spaceComplexity": "O(1)"
+        }
+      },
+      "commentary": "### Grandmaster AI Match Breakdown\n**AlphaWarrior**:\n- Scored **89/100** points (40/40 on test cases, 22/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `ACCEPTED`.\n\n**BetaGladiator**:\n- Scored **94/100** points (40/40 on test cases, 22/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `ACCEPTED`.\n\n**Decision Verdict**: Congratulations to **BetaGladiator** for taking the match victory with optimal problem structure and disciplined conduct."
+    }
+  },
+  {
+    "id": "match_1792955784345_81z88",
+    "mode": "blitz",
+    "difficulty": "EASY",
+    "problem": {
+      "id": "1",
+      "title": "Two Sum",
+      "slug": "two-sum",
+      "difficulty": "EASY",
+      "statement": "Given an array of integers `nums` and an integer `target`, return *indices of the two numbers such that they add up to `target`*.\n\nYou may assume that each input would have ***exactly* one solution**, and you may not use the same element twice.\n\n### Example 1:\n**Input:** nums = [2,7,11,15], target = 9  \n**Output:** [0,1]  \n**Explanation:** Because nums[0] + nums[1] == 9, we return [0, 1].\n\n### Constraints:\n* `2 <= nums.length <= 10^4`\n* `-10^9 <= nums[i] <= 10^9`",
+      "constraintsText": "2 <= nums.length <= 10^4, -10^9 <= nums[i] <= 10^9",
+      "starterCode": "class Solution:\n    def twoSum(self, nums: list[int], target: int) -> list[int]:\n        # Write optimal solution here\n        pass"
+    },
+    "player1": {
+      "userId": "solo_human_user",
+      "username": "SoloPilot",
+      "socketId": "X1h18yngo4nQNnOkAAAF",
+      "code": "class Solution:\n    def twoSum(self, nums: list[int], target: int) -> list[int]:\n        # Write optimal solution here\n        pass",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 0,
+      "totalCases": 0,
+      "verdict": "PENDING",
+      "executionTimeMs": 0,
+      "antiCheatWarnings": 0
+    },
+    "player2": {
+      "userId": "ai_bot_1792955784345",
+      "username": "CyberGrandmaster_AI",
+      "socketId": "socket_ai_bot",
+      "code": "class Solution:\n    def solve(self, nums, target):\n        seen = {}\n        for i, n in enumerate(nums):\n            comp = target - n\n            if comp in seen:\n                return [seen[comp], i]\n            seen[n] = i\n        return []",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 8,
+      "totalCases": 8,
+      "verdict": "ACCEPTED",
+      "executionTimeMs": 42,
+      "antiCheatWarnings": 0,
+      "isAiBot": true
+    },
+    "startTime": 1792955784349,
+    "durationSec": 300,
+    "status": "CONCLUDED",
+    "hints": [
+      {
+        "tier": 1,
+        "title": "Observation & Invariants",
+        "content": "Observe the input constraints of \"Two Sum\". Analyze whether scanning all combinations exceeds time bounds.",
+        "keyTakeaway": "Trade space for linear lookup time.",
+        "triggerPercent": 25
+      },
+      {
+        "tier": 2,
+        "title": "Optimal Data Structure",
+        "content": "Consider using a Hash Map or Two-Pointer approach to eliminate repeated inner loops.",
+        "keyTakeaway": "Look up previously encountered complements in O(1) time.",
+        "triggerPercent": 50
+      },
+      {
+        "tier": 3,
+        "title": "Edge Cases & Boundaries",
+        "content": "Watch out for duplicate values, negative numbers, and boundary indexing.",
+        "keyTakeaway": "Test against identical values summing to target.",
+        "triggerPercent": 75
+      }
+    ],
+    "unlockedHintTiers": [
+      1,
+      2,
+      3
+    ],
+    "replayTimeline": [
+      {
+        "t": 0,
+        "type": "match_start",
+        "userId": "SYSTEM",
+        "data": {
+          "matchId": "match_1792955784345_81z88",
+          "mode": "blitz",
+          "problemTitle": "Two Sum"
+        }
+      },
+      {
+        "type": "code_update",
+        "userId": "ai_bot_1792955784345",
+        "data": {
+          "code": "class Solution:\n    def solve(self, nums, target):\n        # Hash map two-pass\n        seen = {}\n",
+          "charCount": 97,
+          "lineCount": 5
+        },
+        "t": 5006
+      },
+      {
+        "type": "code_update",
+        "userId": "ai_bot_1792955784345",
+        "data": {
+          "code": "class Solution:\n    def solve(self, nums, target):\n        # Hash map two-pass\n        seen = {}\n        for i, n in enumerate(nums):\n            comp = target - n\n",
+          "charCount": 164,
+          "lineCount": 7
+        },
+        "t": 10014
+      },
+      {
+        "type": "code_update",
+        "userId": "ai_bot_1792955784345",
+        "data": {
+          "code": "class Solution:\n    def solve(self, nums, target):\n        seen = {}\n        for i, n in enumerate(nums):\n            comp = target - n\n            if comp in seen:\n                return [seen[comp], i]\n            seen[n] = i\n        return []",
+          "charCount": 245,
+          "lineCount": 9
+        },
+        "t": 15023
+      },
+      {
+        "type": "submit_attempt",
+        "userId": "ai_bot_1792955784345",
+        "data": {
+          "verdict": "ACCEPTED",
+          "passedCases": 8,
+          "totalCases": 8
+        },
+        "t": 20036
+      },
+      {
+        "type": "hint_unlocked",
+        "userId": "AI_ORCHESTRATOR",
+        "data": {
+          "tier": 1,
+          "title": "Observation & Invariants",
+          "content": "Observe the input constraints of \"Two Sum\". Analyze whether scanning all combinations exceeds time bounds.",
+          "keyTakeaway": "Trade space for linear lookup time.",
+          "triggerPercent": 25
+        },
+        "t": 76272
+      },
+      {
+        "type": "hint_unlocked",
+        "userId": "AI_ORCHESTRATOR",
+        "data": {
+          "tier": 2,
+          "title": "Optimal Data Structure",
+          "content": "Consider using a Hash Map or Two-Pointer approach to eliminate repeated inner loops.",
+          "keyTakeaway": "Look up previously encountered complements in O(1) time.",
+          "triggerPercent": 50
+        },
+        "t": 150568
+      },
+      {
+        "type": "hint_unlocked",
+        "userId": "AI_ORCHESTRATOR",
+        "data": {
+          "tier": 3,
+          "title": "Edge Cases & Boundaries",
+          "content": "Watch out for duplicate values, negative numbers, and boundary indexing.",
+          "keyTakeaway": "Test against identical values summing to target.",
+          "triggerPercent": 75
+        },
+        "t": 226856
+      },
+      {
+        "type": "match_end",
+        "userId": "REFEREE",
+        "data": {
+          "winnerId": "ai_bot_1792955784345",
+          "winnerName": "CyberGrandmaster_AI",
+          "reason": "CyberGrandmaster_AI won with higher testcase pass rates and code cleanliness."
+        },
+        "t": 302230
+      }
+    ],
+    "decision": {
+      "winnerId": "ai_bot_1792955784345",
+      "winnerName": "CyberGrandmaster_AI",
+      "reason": "CyberGrandmaster_AI won with higher testcase pass rates and code cleanliness.",
+      "scores": {
+        "player1": {
+          "correctness": 0,
+          "efficiency": 0,
+          "cleanliness": 17,
+          "speedAndConduct": 15,
+          "totalScore": 32,
+          "timeComplexity": "O(N^2)",
+          "spaceComplexity": "O(N)"
+        },
+        "player2": {
+          "correctness": 40,
+          "efficiency": 22,
+          "cleanliness": 17,
+          "speedAndConduct": 15,
+          "totalScore": 94,
+          "timeComplexity": "O(N)",
+          "spaceComplexity": "O(1)"
+        }
+      },
+      "commentary": "### Grandmaster AI Match Breakdown\n**SoloPilot**:\n- Scored **32/100** points (0/40 on test cases, 0/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `PENDING`.\n\n**CyberGrandmaster_AI**:\n- Scored **94/100** points (40/40 on test cases, 22/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `ACCEPTED`.\n\n**Decision Verdict**: Congratulations to **CyberGrandmaster_AI** for taking the match victory with optimal problem structure and disciplined conduct."
+    }
+  },
+  {
     "id": "match_1792955782106_gxxxn",
     "mode": "classic",
     "difficulty": "EASY",

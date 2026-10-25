@@ -12,7 +12,7 @@ export function registerArenaSocketHandlers(io: Server, socket: Socket) {
     async (payload: { userId: string; username: string; mode: "classic" | "blitz" | "coop"; difficulty: string }) => {
       console.log(`[ARENA] Player ${payload.username} (${payload.userId}) joined queue for [${payload.mode}] [${payload.difficulty}]`);
 
-      const result = ArenaService.enqueuePlayer({
+      const result = await ArenaService.enqueuePlayer({
         userId: payload.userId,
         username: payload.username,
         socketId: socket.id,

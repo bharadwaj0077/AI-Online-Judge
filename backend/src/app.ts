@@ -1487,7 +1487,7 @@ app.get("/api/v1/dashboard", optionalAuth, async (req: AuthenticatedRequest, res
  */
 app.get("/api/v1/arena/matches", async (req, res): Promise<void> => {
   try {
-    const matches = ArenaService.getRecentMatches();
+    const matches = await ArenaService.getRecentMatches();
     res.status(200).json({ success: true, data: matches });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
@@ -1497,7 +1497,7 @@ app.get("/api/v1/arena/matches", async (req, res): Promise<void> => {
 app.get("/api/v1/arena/replay/:matchId", async (req, res): Promise<void> => {
   try {
     const { matchId } = req.params;
-    const match = ArenaService.getReplay(matchId);
+    const match = await ArenaService.getReplay(matchId);
     if (!match) {
       res.status(404).json({ success: false, message: "Replay not found." });
       return;
