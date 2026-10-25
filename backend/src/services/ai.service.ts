@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { prisma } from "../config/db";
+import { generateContentWithCascade } from "../utils/gemini-cascade";
 
 const getGenAI = () => {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -96,18 +97,12 @@ Respond STRICTLY with a valid JSON array of 3 objects conforming to this schema:
 ]`;
 
     try {
-      const ai = getGenAI();
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.2
-        }
+      const raw = await generateContentWithCascade(prompt, {
+        responseMimeType: "application/json",
+        temperature: 0.2
       });
 
-      const raw = response.text?.trim() || "[]";
-      const parsed: TieredHintItem[] = JSON.parse(raw);
+      const parsed: TieredHintItem[] = JSON.parse(raw || "[]");
       return {
         problemId: problem.id.toString(),
         problemTitle: problem.title,
@@ -198,18 +193,12 @@ Respond STRICTLY with a valid JSON object matching this schema:
 }`;
 
     try {
-      const ai = getGenAI();
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.2,
-        }
+      const raw = await generateContentWithCascade(prompt, {
+        responseMimeType: "application/json",
+        temperature: 0.2,
       });
 
-      const raw = response.text?.trim() || "{}";
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(raw || "{}");
       return {
         timeComplexity: parsed.timeComplexity || "O(N)",
         spaceComplexity: parsed.spaceComplexity || "O(1)",
@@ -266,15 +255,9 @@ ${submission.sourceCode}
 [JUDGE VERDICT]: ${submission.verdict}
 [EARNED SCORE]: ${submission.score}`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: `${systemInstruction}\n\n${userContextPrompt}`,
-      config: {
-        responseMimeType: "application/json",
-      },
+    const rawText = await generateContentWithCascade(`${systemInstruction}\n\n${userContextPrompt}`, {
+      responseMimeType: "application/json",
     });
-
-    const rawText = response.text;
     if (!rawText) {
       throw new Error("Empty response received from the upstream AI core.");
     }
@@ -364,18 +347,12 @@ Respond STRICTLY with a valid JSON object matching this schema:
 }`;
 
     try {
-      const ai = getGenAI();
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.2
-        }
+      const raw = await generateContentWithCascade(prompt, {
+        responseMimeType: "application/json",
+        temperature: 0.2
       });
 
-      const raw = response.text?.trim() || "{}";
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(raw || "{}");
       return {
         rootCause: parsed.rootCause || "The logic diverged from the expected invariants on this input.",
         traceExplanation: parsed.traceExplanation || "The function evaluated the testcase input and returned an unexpected output.",

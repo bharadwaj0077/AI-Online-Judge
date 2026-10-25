@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { generateContentWithCascade } from "../utils/gemini-cascade";
 
 const getGenAI = () => {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -112,17 +113,11 @@ Respond STRICTLY with a valid JSON object matching this schema:
   }
 }`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.2
-        }
+      const raw = await generateContentWithCascade(prompt, {
+        responseMimeType: "application/json",
+        temperature: 0.2
       });
-
-      const raw = response.text?.trim() || "{}";
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(raw || "{}");
 
       const p1Score: PlayerScorecard = {
         correctness: Number(parsed.player1Scores?.correctness ?? 25),

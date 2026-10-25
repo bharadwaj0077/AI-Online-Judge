@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { prisma } from "../config/db";
+import { generateContentWithCascade } from "../utils/gemini-cascade";
 
 const getGenAI = () => {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -297,22 +298,17 @@ Respond strictly in JSON format with:
     let codeCritique: string | undefined;
 
     try {
-      const ai = getGenAI();
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.4
-        }
+      const rawText = await generateContentWithCascade(prompt, {
+        responseMimeType: "application/json",
+        temperature: 0.4
       });
 
-      const parsed = JSON.parse(response.text?.trim() || "{}");
+      const parsed = JSON.parse(rawText || "{}");
       responseText = parsed.responseText || "";
       isHint = Boolean(parsed.isHint);
       codeCritique = parsed.codeCritique;
     } catch (err) {
-      console.warn("⚠️ Gemini call failed, falling back to deterministic interviewer response:", err);
+      console.warn("⚠️ Gemini call failed in processTurn, using context-aware interviewer response:", err);
       responseText = this.getFallbackInterviewerTurn(
         params.contextType || "speech",
         params.userSpeech,
@@ -394,6 +390,8 @@ Respond strictly in JSON format with:
     testResults?: { passed: number; total: number; error?: string },
     company?: string
   ): string {
+    const text = (userSpeech || "").toLowerCase().trim();
+
     if (contextType === "test_run") {
       if (testResults && testResults.passed === testResults.total && testResults.total > 0) {
         return `Awesome job! All ${testResults.total} sample test cases are passing cleanly. Now, let's step back and analyze: what are the worst-case time and space complexities of your implementation, and could we optimize either?`;
@@ -410,11 +408,32 @@ Respond strictly in JSON format with:
       return `Your overall code structure looks clean and well-decomposed. Pay close attention to your base cases and boundary constraints: what happens if the input is empty or has a single element?`;
     }
 
+    // Context-aware speech parsing
+    if (text.includes("hello") || text.includes("hi") || text.includes("hey") || text.includes("good morning") || text.includes("good afternoon")) {
+      return `Hello! Great to connect with you. Whenever you're ready, take a look at the problem statement on your screen. What are your initial thoughts or clarifying questions on how to approach this?`;
+    }
+
+    if (text.includes("ready") || text.includes("start") || text.includes("begin")) {
+      return `Fantastic! Feel free to talk through your initial thought process out loud before writing any code. What data structures come to mind first?`;
+    }
+
+    if (text.includes("complexity") || text.includes("big o") || text.includes("time") || text.includes("space")) {
+      return `Good intuition. If we analyze the loop boundaries, each iteration does constant work. Can we avoid nested loops by using an auxiliary frequency map?`;
+    }
+
+    if (text.includes("hash map") || text.includes("dictionary") || text.includes("hashmap") || text.includes("map")) {
+      return `Using a hash map is a very solid direction—it gives us O(1) average lookup time. How will you store elements as you iterate through the input?`;
+    }
+
+    if (text.includes("two pointer") || text.includes("pointer") || text.includes("binary search") || text.includes("sort")) {
+      return `That approach can work well if the array is sorted. Keep in mind the sorting step takes O(N log N). Does that meet our target constraints?`;
+    }
+
     const standardReplies = [
-      `That sounds like a solid starting intuition. How do you plan to handle duplicates or negative values if they appear in the input?`,
-      `Interesting direction. Walk me through the trade-offs: what is the Big-O time and space complexity of this approach compared to a brute force?`,
-      `Good thought process. Before you implement the full logic, let's trace this with a small sample input to verify our assumptions.`,
-      `I like where you're going with this. Go ahead and start sketching the implementation in the editor, and keep talking through your steps as you code.`
+      `That sounds like a thoughtful direction. How do you plan to handle duplicates or extreme boundary constraints?`,
+      `Interesting intuition. Walk me through the trade-offs: what is the Big-O time and space complexity of this approach compared to a brute force?`,
+      `Good thought process. Before you write out the full logic, let's trace this with a small sample input to verify our assumptions.`,
+      `I like where you're going with this. Go ahead and sketch the implementation in the editor, and keep talking through your steps as you code.`
     ];
 
     return standardReplies[Math.floor(Math.random() * standardReplies.length)];
@@ -460,13 +479,8 @@ Respond strictly in JSON format:
 }`;
 
     try {
-      const ai = getGenAI();
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: { responseMimeType: "application/json", temperature: 0.2 }
-      });
-      return JSON.parse(response.text?.trim() || "{}");
+      const rawText = await generateContentWithCascade(prompt, { responseMimeType: "application/json", temperature: 0.2 });
+      return JSON.parse(rawText || "{}");
     } catch {
       return {
         hasBugs: false,
@@ -560,17 +574,12 @@ Conduct a comprehensive FAANG-caliber candidate debrief and output an authoritat
     let scorecard: ScorecardReport;
 
     try {
-      const ai = getGenAI();
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.3
-        }
+      const rawText = await generateContentWithCascade(prompt, {
+        responseMimeType: "application/json",
+        temperature: 0.3
       });
 
-      const parsed = JSON.parse(response.text?.trim() || "{}");
+      const parsed = JSON.parse(rawText || "{}");
       scorecard = {
         hireDecision: parsed.hireDecision || "LEANING_HIRE",
         overallScore: typeof parsed.overallScore === "number" ? parsed.overallScore : 84,
