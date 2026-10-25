@@ -1,0 +1,175 @@
+[
+  {
+    "id": "match_1792955782106_gxxxn",
+    "mode": "classic",
+    "difficulty": "EASY",
+    "problem": {
+      "id": "13",
+      "title": "Climbing Stairs",
+      "slug": "climbing-stairs",
+      "difficulty": "EASY",
+      "statement": "You are climbing a staircase. It takes `n` steps to reach the top. Each time you can either climb 1 or 2 steps. In how many distinct ways can you climb to the top?",
+      "constraintsText": "1 <= n <= 45",
+      "starterCode": "class Solution:\n    def climbStairs(self, n: int) -> int:\n        pass"
+    },
+    "player1": {
+      "userId": "user_test_p1",
+      "username": "AlphaWarrior",
+      "socketId": "sr_kiSIH9LM-NaGNAAAC",
+      "code": "class Solution:\n    def solve(self, nums, target):\n        lookup = {}\n        for i, num in enumerate(nums):\n            diff = target - num\n            if diff in lookup:\n                return [lookup[diff], i]\n            lookup[num] = i\n        return []",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 10,
+      "totalCases": 10,
+      "verdict": "ACCEPTED",
+      "executionTimeMs": 45,
+      "antiCheatWarnings": 1
+    },
+    "player2": {
+      "userId": "user_test_p2",
+      "username": "BetaGladiator",
+      "socketId": "QfD9uzDvnSuUs2eaAAAD",
+      "code": "class Solution:\n    def solve(self, nums, target):\n        for i in range(len(nums)):\n            for j in range(i + 1, len(nums)):\n                if nums[i] + nums[j] == target:\n                    return [i, j]\n        return []",
+      "language": "python3",
+      "cursorPosition": {
+        "lineNumber": 1,
+        "column": 1
+      },
+      "passedCases": 10,
+      "totalCases": 10,
+      "verdict": "ACCEPTED",
+      "executionTimeMs": 180,
+      "antiCheatWarnings": 0,
+      "isAiBot": false
+    },
+    "startTime": 1792955782177,
+    "durationSec": 600,
+    "status": "CONCLUDED",
+    "hints": [
+      {
+        "tier": 1,
+        "title": "Observation & Invariants",
+        "content": "Observe the input constraints of \"Climbing Stairs\". Analyze whether scanning all combinations exceeds time bounds.",
+        "keyTakeaway": "Trade space for linear lookup time.",
+        "triggerPercent": 25
+      },
+      {
+        "tier": 2,
+        "title": "Optimal Data Structure",
+        "content": "Consider using a Hash Map or Two-Pointer approach to eliminate repeated inner loops.",
+        "keyTakeaway": "Look up previously encountered complements in O(1) time.",
+        "triggerPercent": 50
+      },
+      {
+        "tier": 3,
+        "title": "Edge Cases & Boundaries",
+        "content": "Watch out for duplicate values, negative numbers, and boundary indexing.",
+        "keyTakeaway": "Test against identical values summing to target.",
+        "triggerPercent": 75
+      }
+    ],
+    "unlockedHintTiers": [],
+    "replayTimeline": [
+      {
+        "t": 0,
+        "type": "match_start",
+        "userId": "SYSTEM",
+        "data": {
+          "matchId": "match_1792955782106_gxxxn",
+          "mode": "classic",
+          "problemTitle": "Climbing Stairs"
+        }
+      },
+      {
+        "type": "code_update",
+        "userId": "user_test_p1",
+        "data": {
+          "code": "class Solution:\n    def solve(self):\n        return True\n",
+          "charCount": 57,
+          "lineCount": 4
+        },
+        "t": 944
+      },
+      {
+        "type": "paste_warning",
+        "userId": "user_test_p1",
+        "data": {
+          "reason": "Massive clipboard paste detected (300 characters). Malpractice penalty logged.",
+          "totalWarnings": 1
+        },
+        "t": 1548
+      },
+      {
+        "type": "code_update",
+        "userId": "user_test_p1",
+        "data": {
+          "code": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "charCount": 300,
+          "lineCount": 1
+        },
+        "t": 1549
+      },
+      {
+        "type": "submit_attempt",
+        "userId": "user_test_p1",
+        "data": {
+          "verdict": "ACCEPTED",
+          "passedCases": 10,
+          "totalCases": 10,
+          "executionTimeMs": 45
+        },
+        "t": 3376
+      },
+      {
+        "type": "submit_attempt",
+        "userId": "user_test_p2",
+        "data": {
+          "verdict": "ACCEPTED",
+          "passedCases": 10,
+          "totalCases": 10,
+          "executionTimeMs": 180
+        },
+        "t": 3376
+      },
+      {
+        "type": "match_end",
+        "userId": "REFEREE",
+        "data": {
+          "winnerId": "user_test_p2",
+          "winnerName": "BetaGladiator",
+          "reason": "BetaGladiator won with higher testcase pass rates and code cleanliness."
+        },
+        "t": 4517
+      }
+    ],
+    "decision": {
+      "winnerId": "user_test_p2",
+      "winnerName": "BetaGladiator",
+      "reason": "BetaGladiator won with higher testcase pass rates and code cleanliness.",
+      "scores": {
+        "player1": {
+          "correctness": 40,
+          "efficiency": 22,
+          "cleanliness": 17,
+          "speedAndConduct": 10,
+          "totalScore": 89,
+          "timeComplexity": "O(N)",
+          "spaceComplexity": "O(1)"
+        },
+        "player2": {
+          "correctness": 40,
+          "efficiency": 22,
+          "cleanliness": 17,
+          "speedAndConduct": 15,
+          "totalScore": 94,
+          "timeComplexity": "O(N)",
+          "spaceComplexity": "O(1)"
+        }
+      },
+      "commentary": "### Grandmaster AI Match Breakdown\n**AlphaWarrior**:\n- Scored **89/100** points (40/40 on test cases, 22/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `ACCEPTED`.\n\n**BetaGladiator**:\n- Scored **94/100** points (40/40 on test cases, 22/25 efficiency, 17/20 cleanliness).\n- Final implementation verdict: `ACCEPTED`.\n\n**Decision Verdict**: Congratulations to **BetaGladiator** for taking the match victory with optimal problem structure and disciplined conduct."
+    }
+  }
+]

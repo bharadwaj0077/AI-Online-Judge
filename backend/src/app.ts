@@ -10,6 +10,7 @@ import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
 import { prisma } from "./config/db";
 import { AiService } from "./services/ai.service";
+import { ArenaService } from "./services/arena.service";
 import { Verdict, Difficulty, ProblemVisibility, UserRole } from "@prisma/client";
 
 // Patch BigInt serialization capability natively into Express JSON encoders
@@ -1480,6 +1481,59 @@ app.get("/api/v1/dashboard", optionalAuth, async (req: AuthenticatedRequest, res
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
+/**
+ * ⚔️ 1V1 CODE WARS ARENA & PLAYBACK ENDPOINTS
+ */
+app.get("/api/v1/arena/matches", async (req, res): Promise<void> => {
+  try {
+    const matches = ArenaService.getRecentMatches();
+    res.status(200).json({ success: true, data: matches });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get("/api/v1/arena/replay/:matchId", async (req, res): Promise<void> => {
+  try {
+    const { matchId } = req.params;
+    const match = ArenaService.getReplay(matchId);
+    if (!match) {
+      res.status(404).json({ success: false, message: "Replay not found." });
+      return;
+    }
+    res.status(200).json({ success: true, data: match });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post("/api/v1/arena/custom-room", optionalAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { mode, difficulty } = req.body;
+    const userId = req.user?.id || `guest_${Date.now()}`;
+    const username = req.user?.username || `Warrior_${Math.floor(Math.random() * 900 + 100)}`;
+
+    const roomCode = ArenaService.createCustomRoom(
+      { userId, username },
+      mode || "classic",
+      difficulty || "ANY"
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        roomCode,
+        mode: mode || "classic",
+        difficulty: difficulty || "ANY",
+        host: { userId, username }
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 
 app.use(errorHandler);
 

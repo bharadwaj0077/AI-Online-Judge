@@ -1,6 +1,8 @@
 import { Server as HttpServer } from "http";
 import { Server, Socket } from "socket.io";
 
+import { registerArenaSocketHandlers } from "../sockets/arena.socket";
+
 export class SocketHub {
   private static io: Server | null = null;
 
@@ -10,7 +12,7 @@ export class SocketHub {
   public static init(server: HttpServer): Server {
     this.io = new Server(server, {
       cors: {
-        origin: "http://localhost:3000", // Trust your frontend Next.js app port configuration
+        origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
         credentials: true,
         methods: ["GET", "POST"]
       }
@@ -21,6 +23,9 @@ export class SocketHub {
     // Coordinate state attachments for active client listeners
     this.io.on("connection", (socket: Socket) => {
       console.log(`🔌 Client attached to network socket pipeline: ${socket.id}`);
+
+      // Hook: Register 1v1 Arena matchmaking, code sync, anti-cheat, and referee handlers
+      registerArenaSocketHandlers(this.io!, socket);
 
       // Hook: Triggered when a developer clicks into a live contest workspace arena
       socket.on("join_contest", (contestPublicId: string) => {
