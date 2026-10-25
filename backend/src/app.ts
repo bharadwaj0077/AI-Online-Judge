@@ -539,25 +539,189 @@ app.delete("/api/v1/problems/:id", requireAuth, requireAdmin, async (req: Authen
   }
 });
 
+app.put("/api/v1/problems/:id", requireAuth, requireAdmin, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const problemId = BigInt(req.params.id);
+    const {
+      title,
+      difficulty,
+      timeLimitMs,
+      memoryLimitMb,
+      statement,
+      constraintsText,
+      testCases,
+      referenceSolution,
+      templates
+    } = req.body;
+
+    const existing = await prisma.problem.findUnique({ where: { id: problemId } });
+    if (!existing) {
+      res.status(404).json({ success: false, message: "Problem not found." });
+      return;
+    }
+
+    const updatedSlug = title
+      ? title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "")
+      : existing.slug;
+
+    let finalTemplatesStr = existing.inputTemplate;
+    if (templates) {
+      try {
+        const oldMap = JSON.parse(existing.inputTemplate || "{}");
+        finalTemplatesStr = JSON.stringify({ ...oldMap, ...templates });
+      } catch {
+        finalTemplatesStr = JSON.stringify(templates);
+      }
+    }
+
+    const updatedProblem = await prisma.$transaction(async (tx) => {
+      const prob = await tx.problem.update({
+        where: { id: problemId },
+        data: {
+          title: title ?? existing.title,
+          slug: updatedSlug,
+          statement: statement ?? existing.statement,
+          difficulty: difficulty ?? existing.difficulty,
+          timeLimitMs: timeLimitMs !== undefined ? Number(timeLimitMs) : existing.timeLimitMs,
+          memoryLimitMb: memoryLimitMb !== undefined ? Number(memoryLimitMb) : existing.memoryLimitMb,
+          constraintsText: constraintsText ?? existing.constraintsText,
+          inputTemplate: finalTemplatesStr,
+          referenceSolution: referenceSolution ?? existing.referenceSolution
+        }
+      });
+
+      if (Array.isArray(testCases)) {
+        await tx.testCase.deleteMany({ where: { problemId } });
+        for (let i = 0; i < testCases.length; i++) {
+          const tc = testCases[i];
+          await tx.testCase.create({
+            data: {
+              problemId,
+              orderNo: i + 1,
+              input: String(tc.input ?? ""),
+              expectedOutput: String(tc.expectedOutput ?? ""),
+              isSample: tc.isSample === true || tc.isSample === "true",
+              weight: 1
+            }
+          });
+        }
+      }
+
+      return prob;
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Problem updated successfully.",
+      data: { ...updatedProblem, id: updatedProblem.id.toString() }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get("/api/v1/admin/problems/:id", requireAuth, requireAdmin, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const idVal = req.params.id;
+    const problem = await prisma.problem.findFirst({
+      where: {
+        OR: [
+          { id: !isNaN(Number(idVal)) ? BigInt(idVal) : undefined },
+          { slug: idVal }
+        ],
+        deletedAt: null
+      },
+      include: {
+        testCases: { orderBy: { orderNo: "asc" } }
+      }
+    });
+
+    if (!problem) {
+      res.status(404).json({ success: false, message: "Problem not found." });
+      return;
+    }
+
+    let templates = { python3: "", cpp17: "", java17: "", javascript: "" };
+    try {
+      templates = { ...templates, ...JSON.parse(problem.inputTemplate || "{}") };
+    } catch {}
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: problem.id.toString(),
+        title: problem.title,
+        slug: problem.slug,
+        difficulty: problem.difficulty,
+        statement: problem.statement,
+        constraintsText: problem.constraintsText,
+        timeLimitMs: problem.timeLimitMs,
+        memoryLimitMb: problem.memoryLimitMb,
+        referenceSolution: problem.referenceSolution || "",
+        templates,
+        testCases: problem.testCases.map((tc) => ({
+          id: tc.id.toString(),
+          orderNo: tc.orderNo,
+          input: tc.input,
+          expectedOutput: tc.expectedOutput,
+          isSample: tc.isSample
+        }))
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post("/api/v1/admin/problems/generate-testcases", requireAuth, requireAdmin, async (req: AuthenticatedRequest, res): Promise<void> => {
+  try {
+    const { title, statement, difficulty } = req.body;
+    if (!title || !statement) {
+      res.status(400).json({ success: false, message: "Title and statement are required to generate test cases." });
+      return;
+    }
+
+    const testCases = await AiService.generateTestCases(title, statement, difficulty || "EASY");
+    res.status(200).json({ success: true, data: { testCases } });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 app.get("/api/v1/problems", async (req, res): Promise<void> => {
   try {
     const problems = await prisma.problem.findMany({
       where: { deletedAt: null },
+      include: {
+        testCases: {
+          select: { isSample: true }
+        }
+      },
       orderBy: { id: "asc" }
     });
-    const formatted = problems.map((p) => ({
-      id: p.id.toString(),
-      title: p.title,
-      slug: p.slug,
-      difficulty: p.difficulty,
-      statement: p.statement,
-      inputFormat: p.inputFormat,
-      outputFormat: p.outputFormat,
-      constraintsText: p.constraintsText,
-      timeLimitMs: p.timeLimitMs,
-      memoryLimitMb: p.memoryLimitMb,
-      inputTemplate: p.inputTemplate
-    }));
+    const formatted = problems.map((p) => {
+      const sampleCasesCount = p.testCases.filter((t) => t.isSample).length;
+      const hiddenCasesCount = p.testCases.filter((t) => !t.isSample).length;
+      return {
+        id: p.id.toString(),
+        title: p.title,
+        slug: p.slug,
+        difficulty: p.difficulty,
+        statement: p.statement,
+        inputFormat: p.inputFormat,
+        outputFormat: p.outputFormat,
+        constraintsText: p.constraintsText,
+        timeLimitMs: p.timeLimitMs,
+        memoryLimitMb: p.memoryLimitMb,
+        inputTemplate: p.inputTemplate,
+        testCasesCount: p.testCases.length,
+        sampleCasesCount,
+        hiddenCasesCount
+      };
+    });
     res.status(200).json({ success: true, data: formatted });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
