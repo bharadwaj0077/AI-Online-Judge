@@ -56,6 +56,27 @@ export interface VisualMatrix {
   activeCell?: [number, number];
 }
 
+export interface VisualLinkedListNode {
+  id: string;
+  value: any;
+  nextId?: string | null;
+  status?: "default" | "active" | "matched" | "reversed" | "visited";
+  label?: string;
+}
+
+export interface VisualLinkedList {
+  id: string;
+  name: string;
+  headId: string;
+  nodes: VisualLinkedListNode[];
+  pointers?: Array<{
+    name: string;
+    targetNodeId: string;
+    color?: string;
+    label?: string;
+  }>;
+}
+
 export interface VisualStep {
   stepIndex: number;
   lineNumber: number;
@@ -70,6 +91,8 @@ export interface VisualStep {
     | "DEQUEUE"
     | "TREE_TRAVERSE"
     | "MATRIX_UPDATE"
+    | "LINKED_LIST_TRAVERSE"
+    | "POINTER_REVERSE"
     | "WRITE"
     | "RETURN";
   explanation: string;
@@ -80,6 +103,7 @@ export interface VisualStep {
     queues?: VisualQueue[];
     trees?: VisualTree[];
     matrices?: VisualMatrix[];
+    linkedLists?: VisualLinkedList[];
     variables?: Record<string, any>;
   };
 }
@@ -97,7 +121,7 @@ export interface VisualTraceResult {
 export interface AlgorithmPreset {
   id: string;
   title: string;
-  category: "two-pointers" | "binary-search" | "stack" | "queue" | "tree" | "matrix" | "sorting";
+  category: "two-pointers" | "binary-search" | "linked-list" | "stack" | "queue" | "tree" | "matrix" | "sorting";
   difficulty: "Easy" | "Medium";
   description: string;
   code: {
@@ -130,8 +154,7 @@ export const ALGORITHM_PRESETS: AlgorithmPreset[] = [
             
     return [-1, -1]
 
-# Execution input
-result = two_sum_sorted([2, 4, 7, 11, 15, 20], 18)`,
+ans = two_sum_sorted([2, 4, 7, 11, 15, 20], 18)`,
       javascript: `function twoSumSorted(nums, target) {
     let left = 0;
     let right = nums.length - 1;
@@ -149,7 +172,7 @@ result = two_sum_sorted([2, 4, 7, 11, 15, 20], 18)`,
     return [-1, -1];
 }
 
-const result = twoSumSorted([2, 4, 7, 11, 15, 20], 18);`
+const ans = twoSumSorted([2, 4, 7, 11, 15, 20], 18);`
     },
     sampleInput: "nums = [2, 4, 7, 11, 15, 20], target = 18"
   },
@@ -196,6 +219,58 @@ ans = binary_search([3, 8, 12, 19, 24, 31, 45, 50], 31)`,
 const ans = binarySearch([3, 8, 12, 19, 24, 31, 45, 50], 31);`
     },
     sampleInput: "nums = [3, 8, 12, 19, 24, 31, 45, 50], target = 31"
+  },
+  {
+    id: "linked-list-reverse",
+    title: "Linked List (Reverse Singly Linked List)",
+    category: "linked-list",
+    difficulty: "Easy",
+    description: "Reverse a singly linked list in-place by adjusting node next pointers (prev, curr, nxt).",
+    code: {
+      python3: `class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
+
+def reverse_list(head):
+    prev = None
+    curr = head
+    
+    while curr:
+        nxt = curr.next
+        curr.next = prev
+        prev = curr
+        curr = nxt
+        
+    return prev
+
+# Construct: 1 -> 2 -> 3 -> 4 -> 5 -> NULL
+head = ListNode(1, ListNode(2, ListNode(3, ListNode(4, ListNode(5)))))
+reversed_head = reverse_list(head)`,
+      javascript: `class ListNode {
+    constructor(val = 0, next = null) {
+        this.val = val;
+        this.next = next;
+    }
+}
+
+function reverseList(head) {
+    let prev = null;
+    let curr = head;
+
+    while (curr !== null) {
+        const nxt = curr.next;
+        curr.next = prev;
+        prev = curr;
+        curr = nxt;
+    }
+    return prev;
+}
+
+const head = new ListNode(1, new ListNode(2, new ListNode(3, new ListNode(4, new ListNode(5)))));
+const reversedHead = reverseList(head);`
+    },
+    sampleInput: "head = 1 -> 2 -> 3 -> 4 -> 5 -> NULL"
   },
   {
     id: "stack-parentheses",
@@ -306,7 +381,6 @@ def invert_tree(root):
     if not root:
         return None
         
-    # Swap left and right subtrees
     root.left, root.right = root.right, root.left
     
     invert_tree(root.left)
@@ -396,7 +470,7 @@ export class VisualProfilerService {
       console.warn("[VisualProfilerService] Gemini generation fallback triggered:", err?.message);
     }
 
-    // Deterministic Fallback Generator
+    // Dynamic Deterministic Fallback Generator
     return this.generateDeterministicFallback({ code, language, input, problemTitle });
   }
 
@@ -416,7 +490,7 @@ export class VisualProfilerService {
 
     const prompt = `You are a high-performance Visual Algorithm Execution Tracer and Profiler.
 Your goal is to evaluate the provided code against the provided input and produce a STEP-BY-STEP execution timeline.
-The frontend visualizer will render arrays with animated pointers, stacks with push/pop, queues with head/tail, tree node graphs, and 2D DP grids.
+The frontend visualizer will render arrays with animated pointers, singly linked lists, stacks with push/pop, queues with head/tail, tree node graphs, and 2D DP grids.
 
 Source Code (with line numbers):
 \`\`\`${params.language}
@@ -424,54 +498,67 @@ ${codeWithLines}
 \`\`\`
 
 Input / Test Case:
-${params.input || "Default execution input"}
+${params.input || "Infer arguments from bottom function calls in code"}
 
 Problem Context: ${params.problemTitle}
 
-REQUIREMENTS:
-1. Generate between 8 and 35 sequential execution steps showing how the algorithm executes line-by-line.
-2. For each step, provide:
-   - "stepIndex": integer 1, 2, 3...
-   - "lineNumber": exact 1-indexed line number in the source code currently executing.
-   - "action": ONE OF ["INIT", "POINTER_MOVE", "COMPARE", "SWAP", "PUSH_STACK", "POP_STACK", "ENQUEUE", "DEQUEUE", "TREE_TRAVERSE", "MATRIX_UPDATE", "WRITE", "RETURN"]
-   - "explanation": a concise, pedagogical 1-sentence explanation of what happened (e.g. "Line 7: nums[left] (2) + nums[right] (20) = 22 > 18. Decrementing right pointer.").
-   - "structures":
-     * "arrays": Array of arrays being traversed/mutated. Elements should have "value" and "status" ("default", "active", "matched", "swapping", "visited").
-     * "pointers": Array of active pointers (e.g., name="left", arrayId="nums", index=0, color="#38bdf8", label="left pointer").
-     * "stacks": If a stack is used, list its current items from bottom to top.
-     * "queues": If a queue is used, list items from front (head) to rear (tail).
-     * "trees": If tree nodes are used, provide list of nodes with id, value, leftId, rightId, status.
-     * "matrices": If 2D grid/DP table is used, provide rows, cols, data array, and activeCell [r, c].
-     * "variables": Key-value map of scalar variables in scope (e.g. {"currSum": 22, "target": 18}).
+CRITICAL DYNAMIC EXECUTION REQUIREMENTS - ABSOLUTELY NO HARDCODING:
+1. You MUST dynamically evaluate the EXACT numbers, arrays, and variables currently written in the Source Code and Input.
+2. If the user edited the function call in the code (for example: \`ans = binary_search([3], 3)\`), you MUST execute binary_search with nums = [3] and target = 3!
+   - Under NO circumstance should you use any previous or default array (e.g. do NOT use [3, 8, 12, 19, 24, 31, 45, 50] if the user changed it to [3]!).
+3. If the user edited array elements or variable values in the input or code, execute with THOSE exact values.
+4. For Singly Linked Lists, provide:
+   "linkedLists": [
+     {
+       "id": "list1",
+       "name": "head",
+       "headId": "node_0",
+       "nodes": [
+         { "id": "node_0", "value": 1, "nextId": "node_1", "status": "active" },
+         { "id": "node_1", "value": 2, "nextId": null, "status": "default" }
+       ],
+       "pointers": [
+         { "name": "curr", "targetNodeId": "node_0", "color": "#38bdf8" },
+         { "name": "prev", "targetNodeId": "node_0", "color": "#10b981" }
+       ]
+     }
+   ]
+5. For Arrays:
+   "arrays": [
+     {
+       "id": "nums",
+       "name": "nums",
+       "elements": [{"value": 3, "status": "matched"}]
+     }
+   ],
+   "pointers": [
+     {"name": "low", "arrayId": "nums", "index": 0, "color": "#38bdf8", "label": "low"}
+   ]
 
-Respond STRICTLY with valid JSON matching this schema:
+JSON Schema to respond strictly with:
 {
-  "summary": "High-level summary of execution (e.g., Two pointers converged in 6 iterations finding target at indices [2, 3])",
+  "summary": "Concise summary of execution on current input",
   "steps": [
     {
       "stepIndex": 1,
-      "lineNumber": 2,
+      "lineNumber": 16,
       "action": "INIT",
-      "explanation": "Initialize pointer left = 0 at index 0.",
+      "explanation": "Calling binary_search with nums=[3] and target=3.",
       "structures": {
         "arrays": [
-          {
-            "id": "nums",
-            "name": "nums",
-            "elements": [{"value": 2, "status": "active"}, {"value": 4, "status": "default"}]
-          }
+          { "id": "nums", "name": "nums", "elements": [{"value": 3, "status": "active"}] }
         ],
         "pointers": [
-          {"name": "left", "arrayId": "nums", "index": 0, "color": "#38bdf8", "label": "left"}
+          {"name": "low", "arrayId": "nums", "index": 0, "color": "#38bdf8"}
         ],
-        "variables": {"left": 0, "target": 18}
+        "variables": {"low": 0, "high": 0, "target": 3}
       }
     }
   ]
 }`;
 
     const rawResponse = await generateContentWithCascade(prompt, {
-      temperature: 0.2,
+      temperature: 0.1,
       responseMimeType: "application/json"
     });
 
@@ -492,7 +579,8 @@ Respond STRICTLY with valid JSON matching this schema:
   }
 
   /**
-   * Deterministic algorithmic tracer fallback for reliable offline / preset execution
+   * Deterministic algorithmic tracer fallback that dynamically extracts user inputs
+   * from either params.code or params.input without any hardcoded arrays.
    */
   private static generateDeterministicFallback(params: {
     code: string;
@@ -500,13 +588,305 @@ Respond STRICTLY with valid JSON matching this schema:
     input: string;
     problemTitle: string;
   }): VisualTraceResult {
-    const code = params.code.toLowerCase();
+    const code = params.code;
+    const lower = code.toLowerCase();
     const steps: VisualStep[] = [];
 
-    // Case 1: Two Sum / Two Pointers pattern
-    if (code.includes("left") && code.includes("right")) {
-      const arr = [2, 4, 7, 11, 15, 20];
-      const target = 18;
+    // 1. Dynamic Array & Target Extraction from code or input
+    const hasInput = Boolean(params.input && params.input.trim().length > 0);
+    let extractedArray: number[] = [3];
+    let extractedTarget: number = 3;
+
+    // Check array: from input first if provided, otherwise from code
+    const arrayMatch = hasInput
+      ? params.input.match(/\[\s*([\d\s,\.\-]+)\s*\]/)
+      : params.code.match(/\[\s*([\d\s,\.\-]+)\s*\]/);
+
+    const fallbackArrayMatch = hasInput ? params.code.match(/\[\s*([\d\s,\.\-]+)\s*\]/) : null;
+    const finalArrayMatch = arrayMatch || fallbackArrayMatch;
+
+    if (finalArrayMatch && finalArrayMatch[1]) {
+      const parsedNums = finalArrayMatch[1]
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map(Number);
+      if (parsedNums.length > 0 && !parsedNums.some(isNaN)) {
+        extractedArray = parsedNums;
+      }
+    } else if (hasInput) {
+      // Try comma-separated or newline-separated integers
+      const parsed = params.input
+        .split(/[\n,]/)
+        .map((s) => s.trim())
+        .filter((s) => /^\-?\d+$/.test(s))
+        .map(Number);
+      if (parsed.length > 0) {
+        extractedArray = parsed;
+      }
+    }
+
+    // Check if input or code contains arrow notation for linked lists: e.g. 1 -> 2 -> 3 -> 4
+    const arrowSource = hasInput ? params.input : params.code;
+    const arrowMatch = arrowSource.match(/(\d+\s*(?:->\s*\d+)+)/);
+    if (arrowMatch && arrowMatch[1]) {
+      const arrowNums = arrowMatch[1]
+        .split("->")
+        .map((s) => Number(s.trim()))
+        .filter((n) => !isNaN(n));
+      if (arrowNums.length > 0) {
+        extractedArray = arrowNums;
+      }
+    }
+
+    // Check target: from input first if provided, otherwise from code invocation call
+    if (hasInput) {
+      const targetMatch =
+        params.input.match(/target\s*[:=]\s*(\-?\d+)/i) ||
+        params.input.match(/,\s*(\-?\d+)\s*$/) ||
+        params.input.split("\n")[1]?.match(/(\-?\d+)/);
+      if (targetMatch && targetMatch[1]) {
+        extractedTarget = Number(targetMatch[1]);
+      } else if (extractedArray.length > 0) {
+        extractedTarget = extractedArray[0];
+      }
+    } else {
+      const targetCodeMatch = params.code.match(/,\s*(\-?\d+)\s*\)/);
+      if (targetCodeMatch && targetCodeMatch[1]) {
+        extractedTarget = Number(targetCodeMatch[1]);
+      } else if (extractedArray.length > 0) {
+        extractedTarget = extractedArray[0];
+      }
+    }
+
+    // Case A: Binary Search (Dynamic execution on extractedArray & extractedTarget)
+    if (lower.includes("binary_search") || (lower.includes("low") && lower.includes("high") && lower.includes("mid"))) {
+      let low = 0;
+      let high = extractedArray.length - 1;
+      let stepIdx = 1;
+
+      steps.push({
+        stepIndex: stepIdx++,
+        lineNumber: 2,
+        action: "INIT",
+        explanation: `Initialize binary search: low = 0, high = ${high} on array [${extractedArray.join(", ")}], searching for target = ${extractedTarget}.`,
+        structures: {
+          arrays: [{ id: "nums", name: "nums", elements: extractedArray.map((v) => ({ value: v, status: "default" })) }],
+          pointers: [
+            { name: "low", arrayId: "nums", index: low, color: "#38bdf8", label: "low" },
+            { name: "high", arrayId: "nums", index: high, color: "#f43f5e", label: "high" }
+          ],
+          variables: { low, high, target: extractedTarget }
+        }
+      });
+
+      let found = false;
+      while (low <= high && stepIdx <= 25) {
+        const mid = Math.floor((low + high) / 2);
+        const midVal = extractedArray[mid];
+
+        steps.push({
+          stepIndex: stepIdx++,
+          lineNumber: 6,
+          action: "COMPARE",
+          explanation: `Line 6: Compute mid = (${low} + ${high}) // 2 = ${mid}. nums[${mid}] = ${midVal} vs target = ${extractedTarget}.`,
+          structures: {
+            arrays: [
+              {
+                id: "nums",
+                name: "nums",
+                elements: extractedArray.map((v, i) => ({
+                  value: v,
+                  status: i === mid ? "active" : i >= low && i <= high ? "default" : "visited"
+                }))
+              }
+            ],
+            pointers: [
+              { name: "low", arrayId: "nums", index: low, color: "#38bdf8", label: "low" },
+              { name: "mid", arrayId: "nums", index: mid, color: "#eab308", label: "mid" },
+              { name: "high", arrayId: "nums", index: high, color: "#f43f5e", label: "high" }
+            ],
+            variables: { low, mid, high, "nums[mid]": midVal, target: extractedTarget }
+          }
+        });
+
+        if (midVal === extractedTarget) {
+          found = true;
+          steps.push({
+            stepIndex: stepIdx++,
+            lineNumber: 8,
+            action: "RETURN",
+            explanation: `Line 8: Target ${extractedTarget} found at index ${mid}! Returning index ${mid}.`,
+            structures: {
+              arrays: [
+                {
+                  id: "nums",
+                  name: "nums",
+                  elements: extractedArray.map((v, i) => ({
+                    value: v,
+                    status: i === mid ? "matched" : "default"
+                  }))
+                }
+              ],
+              pointers: [{ name: "mid", arrayId: "nums", index: mid, color: "#10b981", label: "target match" }],
+              variables: { result: mid, target: extractedTarget }
+            }
+          });
+          break;
+        } else if (midVal < extractedTarget) {
+          low = mid + 1;
+          steps.push({
+            stepIndex: stepIdx++,
+            lineNumber: 10,
+            action: "POINTER_MOVE",
+            explanation: `Line 10: nums[${mid}] (${midVal}) < target (${extractedTarget}). Target must be in right half. Adjust low = ${low}.`,
+            structures: {
+              arrays: [{ id: "nums", name: "nums", elements: extractedArray.map((v) => ({ value: v, status: "default" })) }],
+              pointers: [
+                { name: "low", arrayId: "nums", index: Math.min(extractedArray.length - 1, low), color: "#38bdf8", label: "low" },
+                { name: "high", arrayId: "nums", index: Math.max(0, high), color: "#f43f5e", label: "high" }
+              ],
+              variables: { low, high, target: extractedTarget }
+            }
+          });
+        } else {
+          high = mid - 1;
+          steps.push({
+            stepIndex: stepIdx++,
+            lineNumber: 12,
+            action: "POINTER_MOVE",
+            explanation: `Line 12: nums[${mid}] (${midVal}) > target (${extractedTarget}). Target must be in left half. Adjust high = ${high}.`,
+            structures: {
+              arrays: [{ id: "nums", name: "nums", elements: extractedArray.map((v) => ({ value: v, status: "default" })) }],
+              pointers: [
+                { name: "low", arrayId: "nums", index: Math.min(extractedArray.length - 1, low), color: "#38bdf8", label: "low" },
+                { name: "high", arrayId: "nums", index: Math.max(0, high), color: "#f43f5e", label: "high" }
+              ],
+              variables: { low, high, target: extractedTarget }
+            }
+          });
+        }
+      }
+
+      if (!found) {
+        steps.push({
+          stepIndex: stepIdx++,
+          lineNumber: 14,
+          action: "RETURN",
+          explanation: `Line 14: Search space exhausted (low > high). Target ${extractedTarget} not found in array. Return -1.`,
+          structures: {
+            variables: { result: -1, target: extractedTarget }
+          }
+        });
+      }
+    }
+    // Case B: Singly Linked List Reversal
+    else if (lower.includes("listnode") || lower.includes("reverse_list") || lower.includes("reverselist") || lower.includes("linked")) {
+      const listVals = extractedArray.length > 1 ? extractedArray : [1, 2, 3, 4, 5];
+      let stepIdx = 1;
+
+      const nodes: VisualLinkedListNode[] = listVals.map((val, idx) => ({
+        id: `node_${idx}`,
+        value: val,
+        nextId: idx < listVals.length - 1 ? `node_${idx + 1}` : null,
+        status: idx === 0 ? "active" : "default"
+      }));
+
+      steps.push({
+        stepIndex: stepIdx++,
+        lineNumber: 7,
+        action: "INIT",
+        explanation: "Initialize pointers: prev = NULL, curr = head pointing to node [1].",
+        structures: {
+          linkedLists: [
+            {
+              id: "head_list",
+              name: "head",
+              headId: "node_0",
+              nodes: JSON.parse(JSON.stringify(nodes)),
+              pointers: [{ name: "curr", targetNodeId: "node_0", color: "#38bdf8" }]
+            }
+          ],
+          variables: { prev: "NULL", curr: listVals[0] }
+        }
+      });
+
+      for (let i = 0; i < listVals.length; i++) {
+        const currNode = nodes[i];
+        const nextId = i < listVals.length - 1 ? `node_${i + 1}` : null;
+
+        // Step: Save next
+        steps.push({
+          stepIndex: stepIdx++,
+          lineNumber: 10,
+          action: "LINKED_LIST_TRAVERSE",
+          explanation: `Line 10: Save nxt = curr.next (points to ${nextId ? `node [${listVals[i + 1]}]` : "NULL"}).`,
+          structures: {
+            linkedLists: [
+              {
+                id: "head_list",
+                name: "head",
+                headId: "node_0",
+                nodes: JSON.parse(JSON.stringify(nodes)),
+                pointers: [
+                  { name: "curr", targetNodeId: `node_${i}`, color: "#38bdf8" },
+                  ...(nextId ? [{ name: "nxt", targetNodeId: nextId, color: "#eab308" }] : [])
+                ]
+              }
+            ],
+            variables: { curr: listVals[i], nxt: nextId ? listVals[i + 1] : "NULL" }
+          }
+        });
+
+        // Step: Reverse link
+        currNode.status = "reversed";
+        currNode.nextId = i > 0 ? `node_${i - 1}` : null;
+
+        steps.push({
+          stepIndex: stepIdx++,
+          lineNumber: 11,
+          action: "POINTER_REVERSE",
+          explanation: `Line 11: Reverse link! curr.next = prev (node [${listVals[i]}] now points to ${
+            i > 0 ? `node [${listVals[i - 1]}]` : "NULL"
+          }).`,
+          structures: {
+            linkedLists: [
+              {
+                id: "head_list",
+                name: "head",
+                headId: `node_${i}`,
+                nodes: JSON.parse(JSON.stringify(nodes)),
+                pointers: [{ name: "curr", targetNodeId: `node_${i}`, color: "#a855f7" }]
+              }
+            ],
+            variables: { curr: listVals[i], prev: i > 0 ? listVals[i - 1] : "NULL" }
+          }
+        });
+      }
+
+      steps.push({
+        stepIndex: stepIdx++,
+        lineNumber: 15,
+        action: "RETURN",
+        explanation: `Line 15: Traversal complete (curr is NULL). Return prev (new head is node [${listVals[listVals.length - 1]}]).`,
+        structures: {
+          linkedLists: [
+            {
+              id: "head_list",
+              name: "new_head",
+              headId: `node_${listVals.length - 1}`,
+              nodes: JSON.parse(JSON.stringify(nodes)),
+              pointers: [{ name: "new_head", targetNodeId: `node_${listVals.length - 1}`, color: "#10b981" }]
+            }
+          ],
+          variables: { newHead: listVals[listVals.length - 1] }
+        }
+      });
+    }
+    // Case C: Two Pointers / Two Sum
+    else if (lower.includes("left") && lower.includes("right")) {
+      const arr = extractedArray;
+      const target = extractedTarget;
       let left = 0;
       let right = arr.length - 1;
       let stepIdx = 1;
@@ -515,7 +895,7 @@ Respond STRICTLY with valid JSON matching this schema:
         stepIndex: stepIdx++,
         lineNumber: 2,
         action: "INIT",
-        explanation: `Initialize two pointers: left = 0 pointing to ${arr[left]}, right = ${right} pointing to ${arr[right]}.`,
+        explanation: `Initialize two pointers on [${arr.join(", ")}]: left = 0 pointing to ${arr[left]}, right = ${right} pointing to ${arr[right]}.`,
         structures: {
           arrays: [{ id: "nums", name: "nums", elements: arr.map((v) => ({ value: v, status: "default" })) }],
           pointers: [
@@ -526,7 +906,7 @@ Respond STRICTLY with valid JSON matching this schema:
         }
       });
 
-      while (left < right && stepIdx <= 15) {
+      while (left < right && stepIdx <= 20) {
         const sum = arr[left] + arr[right];
         steps.push({
           stepIndex: stepIdx++,
@@ -570,8 +950,8 @@ Respond STRICTLY with valid JSON matching this schema:
                 }
               ],
               pointers: [
-                { name: "left", arrayId: "nums", index: left, color: "#10b981", label: "left (Match)" },
-                { name: "right", arrayId: "nums", index: right, color: "#10b981", label: "right (Match)" }
+                { name: "left", arrayId: "nums", index: left, color: "#10b981", label: "left" },
+                { name: "right", arrayId: "nums", index: right, color: "#10b981", label: "right" }
               ],
               variables: { left, right, sum, target, result: [left, right] }
             }
@@ -583,7 +963,7 @@ Respond STRICTLY with valid JSON matching this schema:
             stepIndex: stepIdx++,
             lineNumber: 10,
             action: "POINTER_MOVE",
-            explanation: `Line 10: Sum ${sum} < ${target}. Increment left pointer to index ${left} to increase total sum.`,
+            explanation: `Line 10: Sum ${sum} < ${target}. Increment left pointer to index ${left}.`,
             structures: {
               arrays: [{ id: "nums", name: "nums", elements: arr.map((v) => ({ value: v, status: "default" })) }],
               pointers: [
@@ -599,7 +979,7 @@ Respond STRICTLY with valid JSON matching this schema:
             stepIndex: stepIdx++,
             lineNumber: 12,
             action: "POINTER_MOVE",
-            explanation: `Line 12: Sum ${sum} > ${target}. Decrement right pointer to index ${right} to decrease total sum.`,
+            explanation: `Line 12: Sum ${sum} > ${target}. Decrement right pointer to index ${right}.`,
             structures: {
               arrays: [{ id: "nums", name: "nums", elements: arr.map((v) => ({ value: v, status: "default" })) }],
               pointers: [
@@ -611,9 +991,11 @@ Respond STRICTLY with valid JSON matching this schema:
           });
         }
       }
-    } else if (code.includes("stack") || code.includes("parenthes")) {
-      // Case 2: Stack parentheses
-      const str = "({[]})";
+    }
+    // Case D: Stack Parentheses Matching
+    else if (lower.includes("stack") || lower.includes("parenthes")) {
+      const strMatch = params.code.match(/["']([()\[\]{}]+)["']/) || params.input.match(/["']([()\[\]{}]+)["']/);
+      const str = strMatch ? strMatch[1] : "({[]})";
       const stackItems: Array<{ value: string; label?: string }> = [];
       let stepIdx = 1;
 
@@ -650,7 +1032,7 @@ Respond STRICTLY with valid JSON matching this schema:
         stepIndex: stepIdx++,
         lineNumber: 12,
         action: "RETURN",
-        explanation: "Line 12: Stack is completely empty. String has perfectly matched and balanced brackets.",
+        explanation: "Line 12: Stack is completely empty. String has balanced brackets.",
         structures: {
           stacks: [{ id: "stk", name: "Bracket Stack", items: [] }],
           variables: { isValid: true }
@@ -684,7 +1066,7 @@ Respond STRICTLY with valid JSON matching this schema:
       code: params.code,
       language: params.language,
       inputDescription: params.input || "Default Input",
-      summary: "Deterministic execution trace profile generated."
+      summary: "Dynamic execution trace profile evaluated on current code input."
     };
   }
 

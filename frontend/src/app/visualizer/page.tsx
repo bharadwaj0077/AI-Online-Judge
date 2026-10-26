@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
-import Navbar from "@/components/Navbar";
 import ProfilerCanvas, { VisualStepData } from "@/components/visualizer/ProfilerCanvas";
 import { api } from "@/lib/api";
 import {
@@ -19,7 +18,8 @@ import {
   Loader2,
   Terminal,
   HelpCircle,
-  Sliders
+  Sliders,
+  Link2
 } from "lucide-react";
 
 interface PresetItem {
@@ -41,6 +41,7 @@ export default function StandaloneVisualizerPage() {
   const [selectedLang, setSelectedLang] = useState<"python3" | "javascript">("python3");
   const [editorCode, setEditorCode] = useState<string>("");
   const [customInput, setCustomInput] = useState<string>("");
+  const [isCustomInputModified, setIsCustomInputModified] = useState<boolean>(false);
   const [visualizing, setVisualizing] = useState<boolean>(false);
   const [traceSteps, setTraceSteps] = useState<VisualStepData[]>([]);
   const [traceSummary, setTraceSummary] = useState<string>("");
@@ -63,6 +64,7 @@ export default function StandaloneVisualizerPage() {
             setActivePresetId(initial.id);
             setEditorCode(initial.code.python3);
             setCustomInput(initial.sampleInput);
+            setIsCustomInputModified(false);
             // Auto run first preset trace
             runVisualizerTrace(initial.code.python3, "python3", initial.sampleInput, initial.title);
           }
@@ -81,6 +83,7 @@ export default function StandaloneVisualizerPage() {
     const code = selectedLang === "javascript" ? preset.code.javascript : preset.code.python3;
     setEditorCode(code);
     setCustomInput(preset.sampleInput);
+    setIsCustomInputModified(false);
     runVisualizerTrace(code, selectedLang, preset.sampleInput, preset.title);
   };
 
@@ -91,7 +94,7 @@ export default function StandaloneVisualizerPage() {
     if (currentPreset) {
       const code = lang === "javascript" ? currentPreset.code.javascript : currentPreset.code.python3;
       setEditorCode(code);
-      runVisualizerTrace(code, lang, customInput, currentPreset.title);
+      runVisualizerTrace(code, lang, isCustomInputModified ? customInput : currentPreset.sampleInput, currentPreset.title);
     }
   };
 
@@ -130,6 +133,21 @@ export default function StandaloneVisualizerPage() {
     }
   };
 
+  // User click on Run & Visualize: dynamically checks if code was edited vs input was edited
+  const handleRunClick = () => {
+    const activePreset = presets.find((p) => p.id === activePresetId);
+    const activePresetCode = activePreset
+      ? (selectedLang === "javascript" ? activePreset.code.javascript : activePreset.code.python3)
+      : "";
+    const isCodeModified = editorCode.trim() !== activePresetCode.trim();
+
+    // If code was modified in Monaco and customInput wasn't explicitly typed by user,
+    // pass empty input so the profiler prioritizes the code's active arguments.
+    // Otherwise, if the user explicitly typed an input, pass that customInput.
+    const inputToSend = (!isCustomInputModified && isCodeModified) ? "" : customInput;
+    runVisualizerTrace(editorCode, selectedLang, inputToSend);
+  };
+
   // 5. Sync active line highlight in Monaco Editor
   const handleActiveLineChange = (lineNumber: number) => {
     if (!editorRef.current || !monacoRef.current || !lineNumber) return;
@@ -159,6 +177,8 @@ export default function StandaloneVisualizerPage() {
         return <Sliders className="w-3.5 h-3.5 text-cyan-400" />;
       case "binary-search":
         return <Search className="w-3.5 h-3.5 text-sky-400" />;
+      case "linked-list":
+        return <Link2 className="w-3.5 h-3.5 text-teal-400" />;
       case "stack":
         return <Layers className="w-3.5 h-3.5 text-purple-400" />;
       case "queue":
@@ -174,9 +194,7 @@ export default function StandaloneVisualizerPage() {
 
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans selection:bg-cyan-500/30">
-      <Navbar />
-
-      {/* Header Banner */}
+      {/* Header Banner (Note: Global Navbar is already provided by RootLayout) */}
       <div className="border-b border-zinc-800/80 bg-zinc-950/80 px-6 py-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
@@ -209,7 +227,7 @@ export default function StandaloneVisualizerPage() {
 
             <button
               type="button"
-              onClick={() => runVisualizerTrace(editorCode, selectedLang, customInput)}
+              onClick={handleRunClick}
               disabled={visualizing}
               className="px-4 py-2 rounded-xl font-bold text-xs bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white shadow-lg shadow-cyan-950/50 flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
             >
@@ -303,7 +321,10 @@ export default function StandaloneVisualizerPage() {
             <input
               type="text"
               value={customInput}
-              onChange={(e) => setCustomInput(e.target.value)}
+              onChange={(e) => {
+                setCustomInput(e.target.value);
+                setIsCustomInputModified(true);
+              }}
               placeholder="e.g. nums = [2, 7, 11, 15], target = 9"
               className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs font-mono text-cyan-200 placeholder-zinc-600 focus:outline-none focus:border-cyan-500"
             />

@@ -6,6 +6,7 @@ import StackVisualizer from "./StackVisualizer";
 import QueueVisualizer from "./QueueVisualizer";
 import TreeVisualizer from "./TreeVisualizer";
 import MatrixVisualizer from "./MatrixVisualizer";
+import LinkedListVisualizer from "./LinkedListVisualizer";
 import VariablesHud from "./VariablesHud";
 import ExecutionControls from "./ExecutionControls";
 import { Sparkles, AlertCircle } from "lucide-react";
@@ -22,6 +23,7 @@ export interface VisualStepData {
     queues?: any[];
     trees?: any[];
     matrices?: any[];
+    linkedLists?: any[];
     variables?: Record<string, any>;
   };
 }
@@ -122,6 +124,7 @@ export default function ProfilerCanvas({
   const hasQueues = Boolean(structures.queues && structures.queues.length > 0);
   const hasTrees = Boolean(structures.trees && structures.trees.length > 0);
   const hasMatrices = Boolean(structures.matrices && structures.matrices.length > 0);
+  const hasLinkedLists = Boolean(structures.linkedLists && structures.linkedLists.length > 0);
   const hasVariables = Boolean(structures.variables && Object.keys(structures.variables).length > 0);
 
   return (
@@ -150,7 +153,12 @@ export default function ProfilerCanvas({
           />
         )}
 
-        {/* 2. Stacks & Queues Split Grid */}
+        {/* 2. Singly Linked Lists */}
+        {hasLinkedLists && (
+          <LinkedListVisualizer linkedLists={structures.linkedLists} />
+        )}
+
+        {/* 3. Stacks & Queues Split Grid */}
         {(hasStacks || hasQueues) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {hasStacks && <StackVisualizer stacks={structures.stacks} />}
@@ -158,13 +166,13 @@ export default function ProfilerCanvas({
           </div>
         )}
 
-        {/* 3. Hierarchical Trees */}
+        {/* 4. Hierarchical Trees */}
         {hasTrees && <TreeVisualizer trees={structures.trees} />}
 
-        {/* 4. 2D Matrices / DP Grids */}
+        {/* 5. 2D Matrices / DP Grids */}
         {hasMatrices && <MatrixVisualizer matrices={structures.matrices} />}
 
-        {/* 5. In-Scope Variables Tracker */}
+        {/* 6. In-Scope Variables Tracker */}
         {hasVariables && <VariablesHud variables={structures.variables} />}
       </div>
 
