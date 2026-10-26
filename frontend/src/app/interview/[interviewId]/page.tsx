@@ -35,6 +35,12 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { getArenaSocket } from "@/lib/socket";
+import {
+  INTERVIEW_VOICES,
+  INTERVIEW_VOICE_LIST,
+  InterviewVoiceId,
+  playInterviewVoice
+} from "@/lib/interview-voices";
 
 interface TranscriptTurn {
   id: string;
@@ -93,6 +99,12 @@ export default function MockInterviewArenaPage() {
   const [timeLeftSec, setTimeLeftSec] = useState(2700); // 45 min default
   const [interviewStatus, setInterviewStatus] = useState<"IN_PROGRESS" | "EVALUATING" | "COMPLETED">("IN_PROGRESS");
   const [interviewerState, setInterviewerState] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
+  const [selectedVoiceId, setSelectedVoiceId] = useState<InterviewVoiceId>("male_soft");
+  const selectedVoiceIdRef = useRef<InterviewVoiceId>("male_soft");
+
+  useEffect(() => {
+    selectedVoiceIdRef.current = selectedVoiceId;
+  }, [selectedVoiceId]);
 
   // Media Controls
   const [cameraEnabled, setCameraEnabled] = useState(true);
@@ -232,6 +244,12 @@ export default function MockInterviewArenaPage() {
         const initialTranscript = Array.isArray(data.transcript) ? data.transcript : [];
         setTranscript(initialTranscript);
 
+        // Initialize voice persona
+        const initVoice = (data.interviewerVoice || localStorage.getItem("mock_interview_voice") || "male_soft") as InterviewVoiceId;
+        if (INTERVIEW_VOICES[initVoice]) {
+          setSelectedVoiceId(initVoice);
+        }
+
         if (data.scorecard) {
           setScorecard(data.scorecard);
           setShowScorecardModal(true);
@@ -257,6 +275,10 @@ export default function MockInterviewArenaPage() {
     socket.emit("interview:join", { interviewId });
 
     socket.on("interview:interviewer_status", (payload: { status: "idle" | "thinking" | "speaking" }) => {
+      // Prevent remote timer from prematurely flipping to idle while local browser speech is actively playing
+      if (payload.status === "idle" && typeof window !== "undefined" && window.speechSynthesis?.speaking) {
+        return;
+      }
       setInterviewerState(payload.status);
     });
 
@@ -424,14 +446,14 @@ export default function MockInterviewArenaPage() {
     setInterimSpeech("");
   };
 
-  const safeRestartRecognition = (delayMs = 250) => {
+  const safeRestartRecognition = (delayMs = 150) => {
     if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
     restartTimeoutRef.current = setTimeout(() => {
       if (isDestroyedRef.current || !micEnabledRef.current || interviewStatusRef.current !== "IN_PROGRESS") {
         setIsListening(false);
         return;
       }
-      if (isRecognizingRef.current || isStartingRef.current) {
+      if (isRecognizingRef.current) {
         setIsListening(true);
         return;
       }
@@ -449,7 +471,7 @@ export default function MockInterviewArenaPage() {
     }, delayMs);
   };
 
-  // 6. Robust Candidate Speech Recognition (Web Speech API)
+  // 6. Robust Candidate Speech Recognition (Web Speech API) with Barge-in Interruption
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -470,9 +492,15 @@ export default function MockInterviewArenaPage() {
       };
 
       recognition.onresult = (event: any) => {
-        // Echo cancellation guard: if interviewer is currently speaking aloud, ignore speaker feedback
+        // Barge-in / Interruption: Candidate speech immediately stops interviewer speech
+        if (typeof window !== "undefined" && window.speechSynthesis && window.speechSynthesis.speaking) {
+          try {
+            window.speechSynthesis.cancel();
+          } catch {}
+        }
         if (interviewerStateRef.current === "speaking") {
-          return;
+          setInterviewerState("idle");
+          interviewerStateRef.current = "idle";
         }
 
         let interim = "";
@@ -492,17 +520,21 @@ export default function MockInterviewArenaPage() {
           speechBufferRef.current = combined;
           setInterimSpeech(combined);
 
-          // Reset silence timer: auto-commits after 1300ms of silence
+          // Auto-commit speech after 1100ms pause
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           silenceTimerRef.current = setTimeout(() => {
             commitPendingSpeech();
-          }, 1300);
+          }, 1100);
         }
       };
 
       recognition.onerror = (e: any) => {
+        isStartingRef.current = false;
         if (e.error !== "no-speech") {
           console.warn("Speech recognition notice:", e.error);
+        }
+        if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+          setIsListening(false);
         }
       };
 
@@ -514,7 +546,7 @@ export default function MockInterviewArenaPage() {
         commitPendingSpeech();
 
         if (!isDestroyedRef.current && micEnabledRef.current && interviewStatusRef.current === "IN_PROGRESS") {
-          safeRestartRecognition(250);
+          safeRestartRecognition(150);
         } else {
           setIsListening(false);
         }
@@ -548,88 +580,56 @@ export default function MockInterviewArenaPage() {
     }
   }, [transcript, interimSpeech]);
 
-  // 7. Robust Voice Synthesis Engine (TTS)
+  // 7. Robust Voice Synthesis Engine (TTS) using 4 distinct personas
   const speakInterviewerVoice = (text: string) => {
     if (aiVoiceMuted || typeof window === "undefined" || !("speechSynthesis" in window)) {
       return;
     }
 
-    try {
-      // 1. Resume audio context (handles browser gesture unlocks)
-      window.speechSynthesis.resume();
-
-      // 2. Stop any pending speech cleanly
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
-
-      // 3. Strip code formatting or markdown symbols from speech
-      const cleanText = text
-        .replace(/```[\s\S]*?```/g, "Code block in editor.")
-        .replace(/`([^`]+)`/g, "$1")
-        .replace(/[*_#\[\]]/g, "")
-        .trim();
-
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-
-      // 4. Select natural English voice
-      const voices = window.speechSynthesis.getVoices();
-      if (voices && voices.length > 0) {
-        const selected =
-          voices.find(
-            (v) =>
-              v.lang.startsWith("en") &&
-              (v.name.includes("Natural") ||
-                v.name.includes("Google") ||
-                v.name.includes("David") ||
-                v.name.includes("Zira") ||
-                v.name.includes("Mark") ||
-                v.name.includes("Samantha"))
-          ) || voices.find((v) => v.lang.startsWith("en"));
-
-        if (selected) {
-          utterance.voice = selected;
-        }
-      }
-
-      utterance.onstart = () => {
+    setAudioUnlocked(true);
+    playInterviewVoice({
+      text,
+      voiceId: selectedVoiceIdRef.current,
+      onStart: () => {
         setInterviewerState("speaking");
-      };
-
-      utterance.onend = () => {
+      },
+      onEnd: () => {
         setInterviewerState("idle");
-        activeUtteranceRef.current = null;
-      };
+      }
+    });
+  };
 
-      utterance.onerror = (e) => {
-        if ((e as any).error === "canceled" || (e as any).error === "interrupted") {
-          return;
-        }
-        console.warn("Speech synthesis notice:", e);
-        setInterviewerState("idle");
-        activeUtteranceRef.current = null;
-      };
+  const handleVoiceChange = (vId: InterviewVoiceId) => {
+    setSelectedVoiceId(vId);
+    try {
+      localStorage.setItem("mock_interview_voice", vId);
+    } catch {}
 
-      // 5. Guard against Chromium Garbage Collection Bug
-      activeUtteranceRef.current = utterance;
-      (window as any).__activeUtterance = utterance;
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
 
-      window.speechSynthesis.speak(utterance);
+    const voice = INTERVIEW_VOICES[vId];
+    if (voice) {
       setAudioUnlocked(true);
-    } catch (err) {
-      console.warn("Speech synthesis error:", err);
-      setInterviewerState("idle");
+      playInterviewVoice({
+        text: `Voice persona switched to ${voice.name}. Let's continue.`,
+        voiceId: vId,
+        onStart: () => setInterviewerState("speaking"),
+        onEnd: () => setInterviewerState("idle")
+      });
     }
   };
 
   // Test / Unlock Audio Button
   const handleTestOrUnlockAudio = () => {
     setAudioUnlocked(true);
+    const voice = INTERVIEW_VOICES[selectedVoiceId] || INTERVIEW_VOICES.male_soft;
     const greeting =
       transcript.find((t) => t.sender === "interviewer")?.text ||
-      `Hello! I am ${sessionData?.interviewerName || "Alex"}. Audio is working loud and clear. Let's begin!`;
+      `Hello! I am ${voice.name}. Audio is crystal clear. Let's begin!`;
     speakInterviewerVoice(greeting);
   };
 
@@ -954,6 +954,24 @@ export default function MockInterviewArenaPage() {
 
         {/* Right Action Controls */}
         <div className="flex items-center gap-2">
+          {/* Voice Persona Selector (2 Male, 2 Female) */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs">
+            <Volume2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <span className="text-[11px] text-zinc-400 hidden xl:inline">Voice:</span>
+            <select
+              aria-label="Select Interviewer Voice"
+              value={selectedVoiceId}
+              onChange={(e) => handleVoiceChange(e.target.value as InterviewVoiceId)}
+              className="bg-transparent text-[11px] font-semibold text-zinc-200 focus:outline-none cursor-pointer"
+            >
+              {INTERVIEW_VOICE_LIST.map((v) => (
+                <option key={v.id} value={v.id} className="bg-zinc-900 text-zinc-200">
+                  {v.name} ({v.tone === "soft" ? "Soft" : "Bold"} {v.gender === "male" ? "M" : "F"})
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Audio Test / Unmute Voice */}
           <button
             type="button"
@@ -973,7 +991,7 @@ export default function MockInterviewArenaPage() {
           <button
             type="button"
             onClick={() => {
-              if (!aiVoiceMuted) window.speechSynthesis?.cancel();
+              if (!aiVoiceMuted && typeof window !== "undefined") window.speechSynthesis?.cancel();
               setAiVoiceMuted(!aiVoiceMuted);
             }}
             title={aiVoiceMuted ? "Unmute AI Voice" : "Mute AI Voice"}
@@ -989,7 +1007,23 @@ export default function MockInterviewArenaPage() {
           {/* Toggle Mic */}
           <button
             type="button"
-            onClick={() => setMicEnabled(!micEnabled)}
+            onClick={() => {
+              const next = !micEnabled;
+              setMicEnabled(next);
+              if (webcamStreamRef.current) {
+                webcamStreamRef.current.getAudioTracks().forEach((track) => {
+                  track.enabled = next;
+                });
+              }
+              if (!next) {
+                try {
+                  speechRecognitionRef.current?.stop();
+                } catch {}
+                setIsListening(false);
+              } else {
+                safeRestartRecognition(50);
+              }
+            }}
             title={micEnabled ? "Mute Microphone" : "Unmute Microphone"}
             className={`p-2 rounded-lg border text-xs transition-colors ${
               !micEnabled
@@ -1003,7 +1037,15 @@ export default function MockInterviewArenaPage() {
           {/* Toggle Camera */}
           <button
             type="button"
-            onClick={() => setCameraEnabled(!cameraEnabled)}
+            onClick={() => {
+              const next = !cameraEnabled;
+              setCameraEnabled(next);
+              if (webcamStreamRef.current) {
+                webcamStreamRef.current.getVideoTracks().forEach((track) => {
+                  track.enabled = next;
+                });
+              }
+            }}
             title={cameraEnabled ? "Turn Off Camera" : "Turn On Camera"}
             className={`p-2 rounded-lg border text-xs transition-colors ${
               !cameraEnabled
@@ -1050,11 +1092,20 @@ export default function MockInterviewArenaPage() {
           {/* Dual Video Call Feed: Interviewer Video + Candidate/Screen Video */}
           <div className="p-4 grid grid-cols-2 gap-3 border-b border-zinc-800/80 bg-zinc-950/40">
             {/* 1. AI Interviewer Video Tile */}
-            <div className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-cyan-500/30 bg-gradient-to-br from-zinc-900 via-zinc-950 to-cyan-950/30 flex flex-col items-center justify-center p-3 shadow-inner">
+            <div className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-cyan-500/30 bg-gradient-to-br from-zinc-900 via-zinc-950 to-cyan-950/30 flex flex-col items-center justify-between p-3 shadow-inner">
+              <div className="w-full flex items-center justify-between">
+                <span className="px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-[9px] font-mono text-cyan-300 border border-cyan-500/20">
+                  INTERVIEWER
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/40 text-[9px] font-mono text-cyan-300">
+                  {INTERVIEW_VOICES[selectedVoiceId]?.tone === "soft" ? "Soft" : "Bold"} · {INTERVIEW_VOICES[selectedVoiceId]?.gender === "male" ? "Male" : "Female"}
+                </span>
+              </div>
+
               {/* Animated Speaking Waves Avatar */}
-              <div className="relative flex items-center justify-center">
+              <div className="relative flex flex-col items-center justify-center my-auto">
                 <div
-                  className={`w-16 h-16 rounded-full border-2 border-cyan-400/50 flex items-center justify-center bg-zinc-900 transition-all duration-300 ${
+                  className={`w-14 h-14 rounded-full border-2 border-cyan-400/50 flex items-center justify-center bg-zinc-900 transition-all duration-300 ${
                     interviewerState === "speaking"
                       ? "ring-4 ring-cyan-400/30 scale-110 shadow-lg shadow-cyan-500/40"
                       : interviewerState === "thinking"
@@ -1063,7 +1114,7 @@ export default function MockInterviewArenaPage() {
                   }`}
                 >
                   <Bot
-                    className={`w-8 h-8 ${
+                    className={`w-7 h-7 ${
                       interviewerState === "speaking" ? "text-cyan-300 animate-bounce" : "text-cyan-400"
                     }`}
                   />
@@ -1071,52 +1122,61 @@ export default function MockInterviewArenaPage() {
                 {interviewerState === "speaking" && (
                   <span className="absolute -inset-2 rounded-full border-2 border-cyan-400/30 animate-ping pointer-events-none" />
                 )}
+
+                {/* Speaking Frequency Bars Visualizer */}
+                {interviewerState === "speaking" && (
+                  <div className="flex items-center gap-1 justify-center mt-2">
+                    <span className="w-1 h-3 bg-cyan-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                    <span className="w-1 h-5 bg-cyan-300 rounded-full animate-bounce [animation-delay:150ms]" />
+                    <span className="w-1 h-4 bg-teal-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                    <span className="w-1 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:450ms]" />
+                  </div>
+                )}
+
+                {/* Status Indicator */}
+                <div className="mt-1.5 text-center">
+                  <div className="font-bold text-xs text-white">
+                    {INTERVIEW_VOICES[selectedVoiceId]?.name || "Alex"} ({INTERVIEW_VOICES[selectedVoiceId]?.role || "Staff SWE"})
+                  </div>
+                  <div className="text-[10px] text-cyan-400 font-mono flex items-center justify-center gap-1 mt-0.5">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        interviewerState === "speaking"
+                          ? "bg-cyan-400 animate-pulse"
+                          : interviewerState === "thinking"
+                          ? "bg-amber-400 animate-ping"
+                          : "bg-emerald-400"
+                      }`}
+                    />
+                    {interviewerState === "speaking"
+                      ? "Speaking..."
+                      : interviewerState === "thinking"
+                      ? "Analyzing Approach..."
+                      : "Listening..."}
+                  </div>
+                </div>
               </div>
 
-              {/* Speaking Frequency Bars Visualizer */}
-              {interviewerState === "speaking" && (
-                <div className="flex items-center gap-1 justify-center mt-2">
-                  <span className="w-1 h-3 bg-cyan-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                  <span className="w-1 h-5 bg-cyan-300 rounded-full animate-bounce [animation-delay:150ms]" />
-                  <span className="w-1 h-4 bg-teal-400 rounded-full animate-bounce [animation-delay:300ms]" />
-                  <span className="w-1 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:450ms]" />
-                </div>
-              )}
-
-              {/* Status Indicator */}
-              <div className="mt-2 text-center">
-                <div className="font-bold text-xs text-white">{sessionData?.interviewerName || "Alex (Staff SWE)"}</div>
-                <div className="text-[10px] text-cyan-400 font-mono flex items-center justify-center gap-1 mt-0.5">
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      interviewerState === "speaking"
-                        ? "bg-cyan-400 animate-pulse"
-                        : interviewerState === "thinking"
-                        ? "bg-amber-400 animate-ping"
-                        : "bg-emerald-400"
-                    }`}
-                  />
-                  {interviewerState === "speaking"
-                    ? "Speaking..."
-                    : interviewerState === "thinking"
-                    ? "Analyzing Approach..."
-                    : "Listening..."}
-                </div>
-              </div>
-
-              {/* Quick Audio Test Button inside Tile */}
-              {!audioUnlocked && (
-                <button
-                  type="button"
-                  onClick={handleTestOrUnlockAudio}
-                  className="mt-2 px-2.5 py-0.5 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-[10px] text-cyan-300 font-semibold transition-all flex items-center gap-1 cursor-pointer"
-                >
-                  <Volume2 className="w-3 h-3" /> Click to Test Voice
-                </button>
-              )}
-
-              <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-[9px] font-mono text-cyan-300 border border-cyan-500/20">
-                INTERVIEWER
+              {/* 4 Voice Persona Switcher Pills */}
+              <div className="w-full flex items-center justify-center gap-1 pt-1 border-t border-zinc-800/60">
+                {INTERVIEW_VOICE_LIST.map((v) => {
+                  const isActive = selectedVoiceId === v.id;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => handleVoiceChange(v.id)}
+                      title={`${v.name} · ${v.tagline}`}
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-mono transition-all cursor-pointer ${
+                        isActive
+                          ? "bg-cyan-500/25 border border-cyan-400 text-cyan-200 font-bold shadow-sm shadow-cyan-500/30"
+                          : "bg-zinc-900/80 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+                      }`}
+                    >
+                      {v.name} ({v.tone[0].toUpperCase()}{v.gender[0].toUpperCase()})
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -1307,9 +1367,27 @@ export default function MockInterviewArenaPage() {
               <button
                 type="button"
                 onClick={() => {
+                  // Stop interviewer speech immediately if currently speaking
+                  if (typeof window !== "undefined" && window.speechSynthesis && window.speechSynthesis.speaking) {
+                    try {
+                      window.speechSynthesis.cancel();
+                    } catch {}
+                    setInterviewerState("idle");
+                  }
                   if (interimSpeech.trim()) {
                     handleForceCommitSpeech();
                   } else {
+                    if (!micEnabled) {
+                      setMicEnabled(true);
+                      if (webcamStreamRef.current) {
+                        webcamStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = true));
+                      }
+                    }
+                    isStartingRef.current = false;
+                    isRecognizingRef.current = false;
+                    try {
+                      speechRecognitionRef.current?.stop();
+                    } catch {}
                     safeRestartRecognition(50);
                   }
                 }}

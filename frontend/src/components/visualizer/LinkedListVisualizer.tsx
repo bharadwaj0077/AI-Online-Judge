@@ -47,7 +47,7 @@ export default function LinkedListVisualizer({ linkedLists = [] }: VisualLinkedL
 
         while (currId && nodeMap.has(currId) && !visitedIds.has(currId)) {
           visitedIds.add(currId);
-          const node = nodeMap.get(currId)!;
+          const node: VisualLinkedListNode = nodeMap.get(currId)!;
           orderedNodes.push(node);
           currId = node.nextId ? String(node.nextId) : null;
         }

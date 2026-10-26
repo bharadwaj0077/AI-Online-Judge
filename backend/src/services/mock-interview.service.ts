@@ -19,6 +19,7 @@ export interface InterviewConfig {
   difficulty: "Easy" | "Medium" | "Hard";
   durationMinutes: number; // 15, 30, 45, 60
   problemId?: string;
+  interviewerVoice?: string;
 }
 
 export interface TranscriptTurn {
@@ -1089,6 +1090,7 @@ Respond strictly in JSON format with:
         language: "python3",
         transcript: initialTranscript as any,
         telemetry: {
+          voiceId: config.interviewerVoice || "male_soft",
           fillerWordCount: 0,
           wpm: 130,
           eyeContactScore: 92,
@@ -1105,6 +1107,7 @@ Respond strictly in JSON format with:
       roleTitle: interview.roleTitle,
       targetCompany: interview.targetCompany,
       interviewerName: interview.interviewerName,
+      interviewerVoice: config.interviewerVoice || "male_soft",
       topic: interview.topic,
       difficulty: interview.difficulty,
       durationMinutes: interview.durationMinutes,
@@ -1692,6 +1695,7 @@ Conduct a comprehensive FAANG-caliber candidate debrief and output an authoritat
       roleTitle: interview.roleTitle,
       targetCompany: interview.targetCompany,
       interviewerName: interview.interviewerName,
+      interviewerVoice: (interview.telemetry as any)?.voiceId || "male_soft",
       topic: interview.topic,
       difficulty: interview.difficulty,
       durationMinutes: interview.durationMinutes,

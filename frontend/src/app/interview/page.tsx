@@ -19,9 +19,18 @@ import {
   AlertCircle,
   Play,
   RotateCcw,
-  Volume2
+  Volume2,
+  VolumeX,
+  Headphones,
+  User
 } from "lucide-react";
 import { api } from "@/lib/api";
+import {
+  INTERVIEW_VOICES,
+  INTERVIEW_VOICE_LIST,
+  InterviewVoiceId,
+  playInterviewVoice
+} from "@/lib/interview-voices";
 
 interface PastInterview {
   id: string;
@@ -65,7 +74,10 @@ export default function InterviewHubPage() {
 
   const [difficulty, setDifficulty] = useState("Medium");
   const [durationMinutes, setDurationMinutes] = useState(45);
-  const [interviewerPersona, setInterviewerPersona] = useState("Alex (Staff SWE)");
+
+  // 4 Distinct Voice Personas: 2 Male (Soft & Bold), 2 Female (Soft & Bold)
+  const [selectedVoiceId, setSelectedVoiceId] = useState<InterviewVoiceId>("male_soft");
+  const [previewingVoiceId, setPreviewingVoiceId] = useState<InterviewVoiceId | null>(null);
 
   // Computed properties
   const effectiveCompany = isCustomCompany ? (customCompanyName.trim() || "Custom Tech Enterprise") : selectedCompany;
@@ -177,19 +189,44 @@ export default function InterviewHubPage() {
     }
   };
 
+  const handlePreviewVoice = (voiceId: InterviewVoiceId) => {
+    if (previewingVoiceId === voiceId) {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      setPreviewingVoiceId(null);
+      return;
+    }
+
+    setPreviewingVoiceId(voiceId);
+    const config = INTERVIEW_VOICES[voiceId];
+    playInterviewVoice({
+      text: config?.previewText || `Hello! I am ${config?.name || "Alex"}. Let's do great in this interview.`,
+      voiceId,
+      onStart: () => setPreviewingVoiceId(voiceId),
+      onEnd: () => setPreviewingVoiceId(null)
+    });
+  };
+
   const startInterview = async () => {
     setIsLaunching(true);
     setErrorMsg(null);
     stopMediaTracks();
 
     try {
+      const chosenVoice = INTERVIEW_VOICES[selectedVoiceId];
+      if (typeof window !== "undefined") {
+        localStorage.setItem("mock_interview_voice", selectedVoiceId);
+      }
+
       const res = await api.post("/interviews", {
         targetCompany: effectiveCompany,
         roleTitle: effectiveRoleTitle,
         topic: effectiveTopic,
         difficulty,
         durationMinutes,
-        interviewerName: interviewerPersona
+        interviewerName: `${chosenVoice.name} (${chosenVoice.role})`,
+        interviewerVoice: selectedVoiceId
       });
 
       if (res.data.success && res.data.data?.interviewId) {
@@ -656,35 +693,105 @@ export default function InterviewHubPage() {
               </div>
             </div>
 
-            {/* Interviewer Persona Selection */}
+            {/* 4 Interviewer Voice Personas (2 Male: Soft & Bold, 2 Female: Soft & Bold) */}
             <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 space-y-4">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                <Bot className="w-4 h-4 text-cyan-400" /> Interviewer Persona
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {personas.map((p) => (
-                  <button
-                    key={p.name}
-                    type="button"
-                    onClick={() => setInterviewerPersona(p.name)}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      interviewerPersona === p.name
-                        ? "border-cyan-500 bg-cyan-950/20 ring-1 ring-cyan-500/40"
-                        : "border-zinc-800 bg-zinc-950/50 hover:border-zinc-700"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-white">{p.name}</span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">
-                        {p.company}
-                      </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+                    <Headphones className="w-4 h-4 text-cyan-400" /> Interviewer Voice & Persona
+                  </label>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    Choose from 4 custom voice styles: 2 Male (Soft & Bold) and 2 Female (Soft & Bold).
+                  </p>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 self-start sm:self-auto">
+                  {INTERVIEW_VOICES[selectedVoiceId].tagline}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {INTERVIEW_VOICE_LIST.map((v) => {
+                  const isSelected = selectedVoiceId === v.id;
+                  const isPreviewing = previewingVoiceId === v.id;
+
+                  return (
+                    <div
+                      key={v.id}
+                      onClick={() => setSelectedVoiceId(v.id)}
+                      className={`p-4 rounded-xl border text-left transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
+                        isSelected
+                          ? "border-cyan-500 bg-cyan-950/25 ring-1 ring-cyan-500/40 shadow-lg shadow-cyan-950/40"
+                          : "border-zinc-800 bg-zinc-950/60 hover:border-zinc-700"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`p-1.5 rounded-lg border ${
+                                v.gender === "female"
+                                  ? "border-pink-500/30 bg-pink-500/10 text-pink-300"
+                                  : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
+                              }`}
+                            >
+                              <User className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="font-bold text-xs text-white">{v.name}</span>
+                              <span className="block text-[10px] text-zinc-400">{v.role}</span>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`text-[9px] font-mono px-2 py-0.5 rounded-full uppercase font-bold border ${
+                              v.tone === "bold"
+                                ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                                : "bg-teal-500/10 border-teal-500/30 text-teal-300"
+                            }`}
+                          >
+                            {v.tone === "bold" ? "Bold" : "Soft"} · {v.gender === "female" ? "Female" : "Male"}
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] text-zinc-300 mt-2.5 leading-snug">{v.focus}</p>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3 text-cyan-400" /> {v.badge}
+                        </span>
+
+                        {/* Interactive Voice Sample Player */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePreviewVoice(v.id);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                            isPreviewing
+                              ? "bg-cyan-500 text-black shadow-md shadow-cyan-500/40 animate-pulse"
+                              : "bg-zinc-800 hover:bg-zinc-700 text-cyan-300 border border-zinc-700"
+                          }`}
+                        >
+                          {isPreviewing ? (
+                            <>
+                              <VolumeX className="w-3 h-3" /> Stop
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="w-3 h-3" /> Listen Sample
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {isSelected && (
+                        <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400" />
+                      )}
                     </div>
-                    <p className="text-[11px] text-zinc-400 mt-2 line-clamp-2">{p.focus}</p>
-                    <div className="text-[10px] text-cyan-400 font-medium mt-2 flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" /> {p.badge}
-                    </div>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

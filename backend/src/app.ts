@@ -1543,7 +1543,7 @@ app.post("/api/v1/arena/custom-room", optionalAuth, async (req: AuthenticatedReq
 // 1. Initialize new mock interview session with candidate config
 app.post("/api/v1/interviews", optionalAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
-    const { roleTitle, targetCompany, interviewerName, topic, difficulty, durationMinutes, problemId } = req.body;
+    const { roleTitle, targetCompany, interviewerName, topic, difficulty, durationMinutes, problemId, interviewerVoice } = req.body;
 
     const session = await MockInterviewService.createInterview({
       userId: req.user?.id,
@@ -1553,7 +1553,8 @@ app.post("/api/v1/interviews", optionalAuth, async (req: AuthenticatedRequest, r
       topic: topic || "Data Structures & Algorithms",
       difficulty: difficulty || "Medium",
       durationMinutes: Number(durationMinutes) || 45,
-      problemId
+      problemId,
+      interviewerVoice: interviewerVoice || "male_soft"
     });
 
     res.status(201).json({ success: true, data: session });
