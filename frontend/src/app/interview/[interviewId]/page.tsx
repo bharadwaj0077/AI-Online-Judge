@@ -31,7 +31,8 @@ import {
   Building2,
   Briefcase,
   Headphones,
-  ArrowLeft
+  ArrowLeft,
+  Square
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { getArenaSocket } from "@/lib/socket";
@@ -113,8 +114,10 @@ export default function MockInterviewArenaPage() {
   const [aiVoiceMuted, setAiVoiceMuted] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
 
-  // Speech Recognition & Captions
+  // Speech Recognition & Push-to-Talk Voice Captions
   const [isListening, setIsListening] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const isRecordingVoiceRef = useRef(false);
   const [interimSpeech, setInterimSpeech] = useState("");
   const [manualInput, setManualInput] = useState("");
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
@@ -419,64 +422,50 @@ export default function MockInterviewArenaPage() {
     };
   }, [cameraEnabled]);
 
-  // Speech Helper: Commit candidate utterance to interviewer
-  const commitPendingSpeech = () => {
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-    const textToCommit = speechBufferRef.current.trim();
-    if (textToCommit.length > 0) {
-      speechBufferRef.current = "";
-      setInterimSpeech("");
-      handleCandidateSpeech(textToCommit);
-    }
-  };
+  // 6. Push-to-Talk / Tap-to-Speak Recording Engine
+  const startRecordingVoice = () => {
+    isDestroyedRef.current = false;
 
-  const handleForceCommitSpeech = () => {
-    commitPendingSpeech();
-  };
-
-  const handleDiscardSpeech = () => {
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
+    // 1. Cancel any active interviewer speech (Barge-in / Interrupt)
+    if (typeof window !== "undefined" && window.speechSynthesis && window.speechSynthesis.speaking) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
     }
+    setInterviewerState("idle");
+    interviewerStateRef.current = "idle";
+
+    // 2. Ensure microphone hardware track is active
+    if (!micEnabled) {
+      setMicEnabled(true);
+      if (webcamStreamRef.current) {
+        webcamStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = true));
+      }
+    }
+
+    // 3. Set active recording state
+    setIsRecordingVoice(true);
+    isRecordingVoiceRef.current = true;
+    setIsListening(true);
     speechBufferRef.current = "";
     setInterimSpeech("");
-  };
 
-  const safeRestartRecognition = (delayMs = 150) => {
-    if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
-    restartTimeoutRef.current = setTimeout(() => {
-      if (isDestroyedRef.current || !micEnabledRef.current || interviewStatusRef.current !== "IN_PROGRESS") {
-        setIsListening(false);
-        return;
-      }
-      if (isRecognizingRef.current) {
-        setIsListening(true);
-        return;
-      }
-
-      try {
-        isStartingRef.current = true;
-        speechRecognitionRef.current?.start();
-      } catch (err: any) {
-        isStartingRef.current = false;
-        if (err.name === "InvalidStateError") {
-          isRecognizingRef.current = true;
-          setIsListening(true);
-        }
-      }
-    }, delayMs);
-  };
-
-  // 6. Robust Candidate Speech Recognition (Web Speech API) with Barge-in Interruption
-  useEffect(() => {
+    // 4. Instantiate Web Speech Recognition freshly for this recording turn
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      console.warn("Web Speech API not supported in this browser. Manual text input is available.");
+      console.warn("Web Speech API not supported in this browser. Please use text input.");
       return;
+    }
+
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.onstart = null;
+        speechRecognitionRef.current.onresult = null;
+        speechRecognitionRef.current.onerror = null;
+        speechRecognitionRef.current.onend = null;
+        speechRecognitionRef.current.abort();
+      } catch {}
+      speechRecognitionRef.current = null;
     }
 
     try {
@@ -487,22 +476,10 @@ export default function MockInterviewArenaPage() {
 
       recognition.onstart = () => {
         isRecognizingRef.current = true;
-        isStartingRef.current = false;
         setIsListening(true);
       };
 
       recognition.onresult = (event: any) => {
-        // Barge-in / Interruption: Candidate speech immediately stops interviewer speech
-        if (typeof window !== "undefined" && window.speechSynthesis && window.speechSynthesis.speaking) {
-          try {
-            window.speechSynthesis.cancel();
-          } catch {}
-        }
-        if (interviewerStateRef.current === "speaking") {
-          setInterviewerState("idle");
-          interviewerStateRef.current = "idle";
-        }
-
         let interim = "";
         let finalChunk = "";
 
@@ -519,50 +496,98 @@ export default function MockInterviewArenaPage() {
         if (combined) {
           speechBufferRef.current = combined;
           setInterimSpeech(combined);
+          // Stream directly into input box so candidate sees their speech in prompt live!
+          setManualInput(combined);
 
-          // Auto-commit speech after 1100ms pause
+          // Auto-send after 2000ms pause when candidate stops speaking
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           silenceTimerRef.current = setTimeout(() => {
-            commitPendingSpeech();
-          }, 1100);
+            if (isRecordingVoiceRef.current) {
+              stopRecordingVoiceAndSend();
+            }
+          }, 2000);
         }
       };
 
       recognition.onerror = (e: any) => {
-        isStartingRef.current = false;
         if (e.error !== "no-speech") {
           console.warn("Speech recognition notice:", e.error);
         }
         if (e.error === "not-allowed" || e.error === "service-not-allowed") {
           setIsListening(false);
+          setIsRecordingVoice(false);
+          isRecordingVoiceRef.current = false;
         }
       };
 
       recognition.onend = () => {
         isRecognizingRef.current = false;
-        isStartingRef.current = false;
-
-        // Commit any uncommitted speech before restarting
-        commitPendingSpeech();
-
-        if (!isDestroyedRef.current && micEnabledRef.current && interviewStatusRef.current === "IN_PROGRESS") {
-          safeRestartRecognition(150);
+        // If candidate is still in recording mode, resume recognition
+        if (isRecordingVoiceRef.current && !isDestroyedRef.current) {
+          try {
+            recognition.start();
+            isRecognizingRef.current = true;
+          } catch {}
         } else {
           setIsListening(false);
         }
       };
 
       speechRecognitionRef.current = recognition;
-      if (micEnabled) {
-        safeRestartRecognition(100);
-      }
+      recognition.start();
     } catch (err) {
-      console.warn("Failed to instantiate SpeechRecognition:", err);
+      console.warn("Error starting speech recognition:", err);
+    }
+  };
+
+  const stopRecordingVoiceAndSend = () => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
     }
 
+    setIsRecordingVoice(false);
+    isRecordingVoiceRef.current = false;
+    setIsListening(false);
+
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch {}
+    }
+
+    const textToCommit = (speechBufferRef.current || manualInput).trim();
+    speechBufferRef.current = "";
+    setInterimSpeech("");
+    setManualInput("");
+
+    if (textToCommit.length > 0) {
+      handleCandidateSpeech(textToCommit);
+    }
+  };
+
+  const handleDiscardSpeech = () => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    setIsRecordingVoice(false);
+    isRecordingVoiceRef.current = false;
+    setIsListening(false);
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch {}
+    }
+    speechBufferRef.current = "";
+    setInterimSpeech("");
+    setManualInput("");
+  };
+
+  // Safe cleanup on unmount
+  useEffect(() => {
     return () => {
       isDestroyedRef.current = true;
-      if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (speechRecognitionRef.current) {
         try {
@@ -571,7 +596,7 @@ export default function MockInterviewArenaPage() {
         speechRecognitionRef.current = null;
       }
     };
-  }, [micEnabled, interviewStatus]);
+  }, []);
 
   // Auto-scroll transcript
   useEffect(() => {
@@ -710,8 +735,24 @@ export default function MockInterviewArenaPage() {
 
   const handleSendManualMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualInput.trim()) return;
-    const text = manualInput;
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (isRecordingVoiceRef.current) {
+      setIsRecordingVoice(false);
+      isRecordingVoiceRef.current = false;
+      setIsListening(false);
+      if (speechRecognitionRef.current) {
+        try {
+          speechRecognitionRef.current.stop();
+        } catch {}
+      }
+    }
+    const text = (manualInput || speechBufferRef.current).trim();
+    if (!text) return;
+    speechBufferRef.current = "";
+    setInterimSpeech("");
     setManualInput("");
     handleCandidateSpeech(text);
   };
@@ -1015,13 +1056,8 @@ export default function MockInterviewArenaPage() {
                   track.enabled = next;
                 });
               }
-              if (!next) {
-                try {
-                  speechRecognitionRef.current?.stop();
-                } catch {}
-                setIsListening(false);
-              } else {
-                safeRestartRecognition(50);
+              if (!next && isRecordingVoiceRef.current) {
+                stopRecordingVoiceAndSend();
               }
             }}
             title={micEnabled ? "Mute Microphone" : "Unmute Microphone"}
@@ -1220,7 +1256,7 @@ export default function MockInterviewArenaPage() {
                   })}
                 </div>
                 <span className={candidateMicVolume > 8 ? "text-emerald-400 font-bold" : "text-zinc-500"}>
-                  {candidateMicVolume > 8 ? `${candidateMicVolume}%` : isListening ? "Listening" : "Muted"}
+                  {candidateMicVolume > 8 ? `${candidateMicVolume}%` : isRecordingVoice ? "Recording" : "Ready"}
                 </span>
               </div>
 
@@ -1342,7 +1378,7 @@ export default function MockInterviewArenaPage() {
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                   <button
                     type="button"
-                    onClick={handleForceCommitSpeech}
+                    onClick={stopRecordingVoiceAndSend}
                     className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" /> Send Voice Now
@@ -1364,47 +1400,28 @@ export default function MockInterviewArenaPage() {
           <div className="p-3 border-t border-zinc-800 bg-zinc-950">
             <form onSubmit={handleSendManualMessage} className="flex items-center gap-2">
               {/* Tap to Speak / Push to Talk Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  // Stop interviewer speech immediately if currently speaking
-                  if (typeof window !== "undefined" && window.speechSynthesis && window.speechSynthesis.speaking) {
-                    try {
-                      window.speechSynthesis.cancel();
-                    } catch {}
-                    setInterviewerState("idle");
-                  }
-                  if (interimSpeech.trim()) {
-                    handleForceCommitSpeech();
-                  } else {
-                    if (!micEnabled) {
-                      setMicEnabled(true);
-                      if (webcamStreamRef.current) {
-                        webcamStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = true));
-                      }
-                    }
-                    isStartingRef.current = false;
-                    isRecognizingRef.current = false;
-                    try {
-                      speechRecognitionRef.current?.stop();
-                    } catch {}
-                    safeRestartRecognition(50);
-                  }
-                }}
-                className={`px-3 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
-                  interimSpeech
-                    ? "border-emerald-500 bg-emerald-950/40 text-emerald-300 animate-pulse shadow-md shadow-emerald-950/50"
-                    : isListening
-                    ? "border-cyan-500 bg-cyan-950/30 text-cyan-300"
-                    : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white"
-                }`}
-                title={isListening ? "Microphone active · Speak or click to send" : "Click to speak"}
-              >
-                <Mic className={`w-4 h-4 ${isListening ? "text-emerald-400 animate-pulse" : "text-zinc-400"}`} />
-                <span className="hidden sm:inline">
-                  {interimSpeech ? "Send Voice" : isListening ? "Listening..." : "Tap to Speak"}
-                </span>
-              </button>
+              {isRecordingVoice ? (
+                <button
+                  type="button"
+                  onClick={stopRecordingVoiceAndSend}
+                  className="px-4 py-2.5 rounded-xl border border-rose-500 bg-rose-950/70 hover:bg-rose-900/80 text-rose-200 font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-rose-950/60 animate-pulse shrink-0 ring-2 ring-rose-500/50"
+                  title="Click to stop speaking and send response to interviewer"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                  <Square className="w-3.5 h-3.5 fill-rose-400 text-rose-400" />
+                  <span>Done Speaking (Send)</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startRecordingVoice}
+                  className="px-4 py-2.5 rounded-xl border border-cyan-500/50 bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-300 font-semibold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-cyan-950/40 shrink-0 hover:border-cyan-400"
+                  title="Click to start speaking to the interviewer"
+                >
+                  <Mic className="w-4 h-4 text-cyan-400" />
+                  <span>Tap to Speak</span>
+                </button>
+              )}
 
               <div className="relative flex-1">
                 <input
@@ -1412,13 +1429,17 @@ export default function MockInterviewArenaPage() {
                   value={manualInput}
                   onChange={(e) => setManualInput(e.target.value)}
                   placeholder={
-                    isListening
-                      ? "Speak into mic or type response here..."
-                      : "Type message or answer for the interviewer..."
+                    isRecordingVoice
+                      ? "🎙️ Listening to you... Speak now (words will appear here live)"
+                      : "Type message or click 'Tap to Speak' to talk to interviewer..."
                   }
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-3 pr-8 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500"
+                  className={`w-full rounded-xl pl-3 pr-8 py-2.5 text-xs text-white focus:outline-none transition-all ${
+                    isRecordingVoice
+                      ? "bg-zinc-900 border-2 border-emerald-500/80 ring-2 ring-emerald-500/20 placeholder-emerald-400 font-medium"
+                      : "bg-zinc-900 border border-zinc-800 placeholder-zinc-500 focus:border-cyan-500"
+                  }`}
                 />
-                {isListening && (
+                {isRecordingVoice && (
                   <span className="absolute right-2.5 top-2.5 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
                 )}
               </div>
@@ -1435,23 +1456,40 @@ export default function MockInterviewArenaPage() {
 
             <div className="flex items-center justify-between mt-2 px-1 text-[10px] text-zinc-400">
               <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1">
-                  <Mic className={`w-3 h-3 ${isListening ? "text-emerald-400 animate-pulse" : "text-zinc-600"}`} />
-                  <span>{isListening ? "Auto-detecting voice (sends on pause)" : "Microphone paused"}</span>
-                </span>
-                {/* Live Mic Level mini bar */}
-                <div className="flex items-center gap-1 pl-2 border-l border-zinc-800">
-                  <span className="text-zinc-500 text-[9px] font-mono">Volume:</span>
-                  <div className="w-12 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                {isRecordingVoice ? (
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span>Recording voice actively · Click &apos;Done Speaking&apos; or pause to send</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-zinc-400">
+                    <Mic className="w-3 h-3 text-cyan-400" />
+                    <span>Click <strong>Tap to Speak</strong> to talk, or type message and press Enter</span>
+                  </span>
+                )}
+
+                {/* Live Hardware Mic Volume Meter */}
+                <div className="flex items-center gap-1.5 pl-2 border-l border-zinc-800">
+                  <span className="text-zinc-500 text-[9px] font-mono">Mic Input:</span>
+                  <div className="w-14 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-75"
+                      className={`h-full transition-all duration-75 ${
+                        candidateMicVolume > 10
+                          ? "bg-gradient-to-r from-emerald-500 to-cyan-400"
+                          : "bg-zinc-600"
+                      }`}
                       style={{ width: `${Math.min(100, candidateMicVolume)}%` }}
                     />
                   </div>
-                  <span className="font-mono text-[9px] text-zinc-400">{candidateMicVolume}%</span>
+                  <span className={`text-[9px] font-mono ${candidateMicVolume > 10 ? "text-emerald-400 font-bold" : "text-zinc-500"}`}>
+                    {candidateMicVolume}%
+                  </span>
                 </div>
               </div>
-              <span>Press Enter to send</span>
+
+              <span className="text-[10px] text-zinc-500 font-mono hidden sm:inline">
+                {isRecordingVoice ? "Click 'Done Speaking' or wait 2s to auto-send" : "Press Enter or click Send"}
+              </span>
             </div>
           </div>
         </div>
