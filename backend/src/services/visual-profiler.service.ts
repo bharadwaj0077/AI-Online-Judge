@@ -534,6 +534,47 @@ CRITICAL DYNAMIC EXECUTION REQUIREMENTS - ABSOLUTELY NO HARDCODING:
    "pointers": [
      {"name": "low", "arrayId": "nums", "index": 0, "color": "#38bdf8", "label": "low"}
    ]
+6. For Stacks (Bracket matching, monotonic stacks):
+   Use action "PUSH_STACK" when pushing an element, and "POP_STACK" when popping.
+   "stacks": [
+     {
+       "id": "stk",
+       "name": "stack",
+       "items": [{"value": "("}, {"value": "{"}]
+     }
+   ]
+7. For Queues (BFS, sliding window):
+   Use action "ENQUEUE" when adding and "DEQUEUE" when removing.
+   "queues": [
+     {
+       "id": "q",
+       "name": "queue",
+       "items": [{"value": "A"}, {"value": "B"}]
+     }
+   ]
+8. For Trees (Binary Tree Invert, DFS, BFS):
+   Use action "TREE_TRAVERSE".
+   "trees": [
+     {
+       "rootId": "node_0",
+       "name": "root",
+       "nodes": [
+         { "id": "node_0", "value": 4, "leftId": "node_1", "rightId": "node_2", "status": "active" }
+       ]
+     }
+   ]
+9. For 2D Dynamic Programming Grids / Matrices:
+   Use action "MATRIX_UPDATE".
+   "matrices": [
+     {
+       "id": "grid",
+       "name": "dp",
+       "rows": 3,
+       "cols": 3,
+       "data": [[0, 0, 0], [0, 1, 0]],
+       "activeCell": [1, 1]
+     }
+   ]
 
 JSON Schema to respond strictly with:
 {
@@ -567,10 +608,79 @@ JSON Schema to respond strictly with:
       throw new Error("Invalid or empty steps in Gemini response");
     }
 
+    // Normalize and sanitize step frames to guarantee standard schema
+    const isStackContext = params.problemTitle?.toLowerCase().includes("stack") || params.code.toLowerCase().includes("stack");
+
+    const normalizedSteps: VisualStep[] = parsed.steps.map((step: any, idx: number) => {
+      const structures = step.structures || {};
+      let action = step.action || "INIT";
+
+      // Normalize action aliases
+      if (action === "PUSH" || action === "STACK_PUSH") action = "PUSH_STACK";
+      if (action === "POP" || action === "STACK_POP") action = "POP_STACK";
+      if (action === "TRAVERSE_TREE" || action === "TREE") action = "TREE_TRAVERSE";
+      if (action === "UPDATE_MATRIX" || action === "MATRIX") action = "MATRIX_UPDATE";
+
+      // Stack auto-detection / normalization from variables
+      if (!structures.stacks && structures.variables) {
+        for (const [varName, varVal] of Object.entries(structures.variables)) {
+          if (varName.toLowerCase().includes("stack") && Array.isArray(varVal)) {
+            structures.stacks = [
+              {
+                id: "stk",
+                name: varName,
+                items: varVal.map((v: any) =>
+                  typeof v === "object" && v !== null && "value" in v ? v : { value: v }
+                )
+              }
+            ];
+            break;
+          }
+        }
+      }
+
+      // Normalize if stack array was placed in structures.arrays
+      if (!structures.stacks && Array.isArray(structures.arrays)) {
+        const stackArr = structures.arrays.find(
+          (a: any) => a.name?.toLowerCase().includes("stack") || a.id?.toLowerCase().includes("stack")
+        );
+        if (stackArr && stackArr.elements) {
+          structures.stacks = [
+            {
+              id: stackArr.id || "stk",
+              name: stackArr.name || "stack",
+              items: stackArr.elements.map((el: any) => ({ value: el.value ?? el }))
+            }
+          ];
+        }
+      }
+
+      // If in a stack context and action is append/pop or structures has stack items
+      if (isStackContext) {
+        const explanationLower = (step.explanation || "").toLowerCase();
+        if (explanationLower.includes("push") || explanationLower.includes("append")) {
+          action = "PUSH_STACK";
+        } else if (explanationLower.includes("pop")) {
+          action = "POP_STACK";
+        }
+
+        if (!structures.stacks) {
+          structures.stacks = [{ id: "stk", name: "stack", items: [] }];
+        }
+      }
+
+      return {
+        ...step,
+        stepIndex: step.stepIndex || idx + 1,
+        action,
+        structures
+      };
+    });
+
     return {
       success: true,
-      totalSteps: parsed.steps.length,
-      steps: parsed.steps,
+      totalSteps: normalizedSteps.length,
+      steps: normalizedSteps,
       code: params.code,
       language: params.language,
       inputDescription: params.input,

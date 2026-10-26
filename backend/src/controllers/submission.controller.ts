@@ -1,6 +1,6 @@
 import { Response, NextFunction } from "express";
 import { prisma } from "../config/db";
-import { SocketHub } from "../config/socket.ts";
+import { SocketHub } from "../config/socket";
 import { AuthenticatedRequest } from "../middlewares/auth.middleware";
 import { exec } from "child_process";
 import fs from "fs";

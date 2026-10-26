@@ -9,7 +9,7 @@ import { env } from "./config/env";
 import http from "http";
 import app from "./app";
 import { prisma } from "./config/db";
-import { SocketHub } from "./config/socket.ts";
+import { SocketHub } from "./config/socket";
 
 const PORT = env.PORT || 5000;
 
