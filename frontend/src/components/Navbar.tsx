@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Code2, Trophy, Cpu, LayoutDashboard, LogOut, LogIn, ShieldCheck, Swords, Bot, Eye } from "lucide-react";
+import { Code2, Trophy, Cpu, LayoutDashboard, LogOut, LogIn, ShieldCheck } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -46,51 +46,46 @@ export default function Navbar() {
         </span>
       </Link>
 
-      <nav className="flex items-center gap-5 text-xs font-semibold text-zinc-400">
-        <Link href="/problems" className={`hover:text-white flex items-center gap-1.5 transition-colors ${pathname.startsWith("/problems") ? "text-indigo-400 font-bold" : ""}`}>
+      <nav className="flex items-center gap-6 text-xs font-semibold text-zinc-400">
+        <Link
+          href="/problems"
+          className={`hover:text-white flex items-center gap-1.5 transition-colors py-1 px-2 rounded-md ${
+            pathname.startsWith("/problems") ? "text-indigo-400 font-bold bg-indigo-500/10" : ""
+          }`}
+        >
           <Code2 className="h-4 w-4" /> PROBLEMS
         </Link>
         <Link
-          href="/arena"
-          className={`hover:text-rose-400 flex items-center gap-1.5 transition-colors ${
-            pathname.startsWith("/arena") ? "text-rose-400 font-bold" : "text-zinc-300"
+          href="/contests"
+          className={`hover:text-white flex items-center gap-1.5 transition-colors py-1 px-2 rounded-md ${
+            pathname.startsWith("/contests") ? "text-amber-400 font-bold bg-amber-500/10" : ""
           }`}
         >
-          <Swords className="h-4 w-4 text-rose-500 animate-pulse" /> 1V1 ARENA
-          <span className="px-1.5 py-0.5 text-[9px] font-mono uppercase bg-rose-500/20 text-rose-400 border border-rose-500/40 rounded-full font-bold">
-            LIVE
-          </span>
-        </Link>
-        <Link
-          href="/interview"
-          className={`hover:text-cyan-400 flex items-center gap-1.5 transition-colors ${
-            pathname.startsWith("/interview") ? "text-cyan-400 font-bold" : "text-zinc-300"
-          }`}
-        >
-          <Bot className="h-4 w-4 text-cyan-400 animate-pulse" /> AI INTERVIEW
-          <span className="px-1.5 py-0.5 text-[9px] font-mono uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-full font-bold">
-            FAANG
-          </span>
-        </Link>
-        <Link
-          href="/visualizer"
-          className={`hover:text-purple-400 flex items-center gap-1.5 transition-colors ${
-            pathname.startsWith("/visualizer") ? "text-purple-400 font-bold" : "text-zinc-300"
-          }`}
-        >
-          <Eye className="h-4 w-4 text-purple-400 animate-pulse" /> VISUALIZER
-        </Link>
-        <Link href="/contests" className={`hover:text-white flex items-center gap-1.5 transition-colors ${pathname.startsWith("/contests") ? "text-indigo-400 font-bold" : ""}`}>
           <Trophy className="h-4 w-4" /> CONTESTS
         </Link>
-        <Link href="/leaderboard" className={`hover:text-white flex items-center gap-1.5 transition-colors ${pathname === "/leaderboard" ? "text-indigo-400 font-bold" : ""}`}>
+        <Link
+          href="/leaderboard"
+          className={`hover:text-white flex items-center gap-1.5 transition-colors py-1 px-2 rounded-md ${
+            pathname === "/leaderboard" ? "text-indigo-400 font-bold bg-indigo-500/10" : ""
+          }`}
+        >
           <Cpu className="h-4 w-4" /> LEADERBOARD
         </Link>
-        <Link href="/dashboard" className={`hover:text-white flex items-center gap-1.5 transition-colors ${pathname === "/dashboard" ? "text-indigo-400 font-bold" : ""}`}>
+        <Link
+          href="/dashboard"
+          className={`hover:text-white flex items-center gap-1.5 transition-colors py-1 px-2 rounded-md ${
+            pathname === "/dashboard" ? "text-indigo-400 font-bold bg-indigo-500/10" : ""
+          }`}
+        >
           <LayoutDashboard className="h-4 w-4" /> DASHBOARD
         </Link>
         {user?.role === "ADMIN" && (
-          <Link href="/admin" className={`hover:text-amber-400 flex items-center gap-1.5 transition-colors text-amber-500 font-bold ${pathname === "/admin" ? "underline" : ""}`}>
+          <Link
+            href="/admin"
+            className={`hover:text-amber-400 flex items-center gap-1.5 transition-colors text-amber-500 font-bold py-1 px-2.5 rounded-md border border-amber-500/30 bg-amber-500/10 ${
+              pathname === "/admin" ? "bg-amber-500/20" : ""
+            }`}
+          >
             <ShieldCheck className="h-4 w-4" /> ADMIN PANEL
           </Link>
         )}

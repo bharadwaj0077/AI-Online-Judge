@@ -1,151 +1,242 @@
-# AI-Powered Online Judge
+# ⚡ SynapseJudge — AI-Powered Online Judge & Real-Time Engineering Arena
 
-An enterprise-grade, full-stack Competitive Programming and Interview Preparation platform engineered with a resilient multi-tier N-tier architecture. It provides secure Docker-based sandboxing, automated multi-language evaluation, AI-driven code mentorship via Google Gemini, real-time coding contests, role-based administration, and a LeetCode-grade interactive workspace.
+An enterprise-grade, full-stack Competitive Programming, Real-Time 1v1 Multiplayer Coding, and Conversational AI Technical Interview platform. Engineered with a resilient N-Tier layered architecture, Docker container sandboxing, low-latency Socket.io WebSockets, Google Gemini 2.5 Flash / Cascade intelligence, and a Monaco-powered developer workspace.
 
 ---
 
-## 🛠️ Tech Stack & System Architecture
+## 🚀 Key Flagship Innovations
+
+### 1. ⚔️ 1v1 Real-Time Code Wars Arena (`/arena`)
+- **Instant Matchmaking & Custom Rooms:** Compete live in Ranked or Blitz duels, or generate private room codes (`ARENA-XXXX`) for 1v1 matches.
+- **Real-Time Keystroke Progress Streaming:** Stream opponent character counts, line counts, and cursor movements live over WebSockets.
+- **Sentinel Anti-Cheat:** Detects clipboard dump malpractice (>150 characters), rapid bursts, and tab-switching blur events with logged warnings.
+- **CyberGrandmaster AI Practice Bot:** Challenge an autonomous AI competitor that simulates human typing cadence and strategic code submissions.
+- **Grandmaster AI Referee:** Evaluates both implementations side-by-side on a **100-point rubric** (Correctness: 40, Efficiency: 25, Cleanliness: 20, Conduct: 15).
+- **Replay Theater:** Relive every keystroke, pause, paste warning, and submission with millisecond-precision playback.
+
+### 2. 🎙️ Conversational AI Mock Interviewer (`/interview`)
+- **Push-to-Talk "Tap to Speak" Engine:** Hardware microphone recording activated on demand with real-time audio visualizer feedback.
+- **Direct Speech Streaming:** Spoken candidate words stream live into the prompt input box, with automatic submission after 2 seconds of silence or clicking "Done Speaking".
+- **4 Voice Personas:**
+  - **Alex** (Staff SWE): Male · Calm, Analytical, Approachable (`male_soft`)
+  - **Marcus** (Principal Architect): Male · Deep, Assertive, Authoritative (`male_bold`)
+  - **Sarah** (Engineering Lead): Female · Clear, Encouraging, Articulate (`female_soft`)
+  - **Elena** (Director of Engineering): Female · Crisp, Direct, Executive (`female_bold`)
+- **CS Fundamentals Bank:** Concurrency, Operating Systems, Computer Networks, Relational DBMS & SQL, and Object-Oriented Architecture.
+- **Custom Specifications:** Customize target company (e.g. Google, Palantir, Meta), target seniority, and problem topic dynamically.
+- **FAANG-Calibrated Scorecard:** Multi-metric hiring evaluation with strengths, growth areas, and executive hiring recommendation (`STRONG_HIRE`, `LEANING_HIRE`, etc.).
+
+### 3. 🎬 Visual Algorithm Execution Profiler (`/visualizer`)
+- **Dual Workspace Integration:** Accessible via the dedicated Standalone Playground (`/visualizer`) and integrated directly inside Problem Workspaces (`/problems/[slug]`).
+- **7 Algorithmic Presets:** Two Pointers, Binary Search, Singly Linked List Reversal, Monotonic Stack, Queue BFS, Binary Trees, and 2D DP Grids.
+- **Dynamic Execution (Zero Hardcoding):** Dynamically evaluates whatever code and input the user supplies with real-time syntax line tracking.
+- **Animated Canvas & SVG Renderers:** Step forward/backward through execution with animated pointer arrows (`low`, `mid`, `high`), memory cells, and stack canisters.
+
+---
+
+## 🛠️ Technology Stack
 
 | Layer | Technology | Purpose & Implementation |
 | :--- | :--- | :--- |
-| **Frontend** | Next.js 14+ (App Router), Tailwind CSS | Server-side rendering (SSR), dynamic layout routing, and responsive UI components. |
-| **Editor Workspace** | Monaco Editor, Custom Resizable Panes | In-browser syntax highlighting, multi-theme skinning, and multi-language support. |
-| **Backend API** | Node.js, Express 5, TypeScript | RESTful route orchestration, middleware security pipelines, and request validation. |
-| **Database & ORM** | PostgreSQL 16+, Prisma ORM (7.8.0 / 7.9.1) | Relational persistence, connection pooling, and optimized data migrations. |
-| **Sandboxing Engine** | Docker (Python, GCC, OpenJDK, Node.js) | Isolated OS micro-containers ensuring secure, resource-capped code execution. |
-| **AI Mentorship** | Google GenAI SDK (`@google/genai`) | Automated code optimization review, hint generation, and complexity analysis. |
-| **Cloud Infrastructure** | AWS RDS, AWS EC2 (`m7i-flex.large`), PM2 | Managed TLS-secured database cluster and 24/7 background application daemon host. |
+| **Frontend Framework** | Next.js 14+ (App Router), React 19, TypeScript | Server-Side Rendering (SSR), responsive layout routing, and fluid client state. |
+| **Styling & Design** | Tailwind CSS, Lucide Icons | Dark-mode interface, glassmorphism, glowing accents, and micro-animations. |
+| **Code Editor** | Monaco Editor (`@monaco-editor/react`) | In-browser syntax highlighting, multiple themes (`synapse`, `midnight`, `cyberpunk`), and split-pane resizable layouts. |
+| **Backend API Gateway**| Node.js, Express 5, TypeScript | RESTful route orchestration, Zod schema validation, and middleware security pipelines. |
+| **Real-Time WebSockets**| Socket.io 4.8+ | Low-latency bidirectional event pipelines for 1v1 arenas and live voice interviews. |
+| **Database & ORM** | PostgreSQL 16+, Prisma ORM 7 (`@prisma/adapter-pg`) | Relational persistence, connection pooling, and partial/composite index optimization. |
+| **Sandboxing Engine** | Docker (Python 3.11, GCC 13, OpenJDK 17, Node 20) | Isolated OS micro-containers (`--network none`, 256MB RAM) for secure remote code execution. |
+| **AI Intelligence** | Google GenAI SDK (`@google/genai`), Gemini 2.5 Flash | Tiered hints, failure diagnosis, Big-O complexity, AI refereeing, and voice dialogue. |
+| **Cloud Deployment** | AWS RDS, AWS EC2 (`m7i-flex.large`), PM2 | Production managed PostgreSQL and 24/7 daemonized backend server. |
 
 ---
 
-## 🏛️ Comprehensive Milestone & Subsystem Breakdown
+## 🏛️ System Architecture Diagram
 
-### Milestone 1: Core Relational Database Specification & Design Patterns
-The persistence layer is optimized for high-throughput judge routing operations and strict data integrity across synchronized relational structures.
+```mermaid
+flowchart TB
+    subgraph Client ["Client Interface (Next.js 14+)"]
+        IDE["Monaco Workspace (/problems/[slug])"]
+        Arena["1v1 Code Wars Arena (/arena)"]
+        Interview["AI Voice Studio (/interview)"]
+        Profiler["Visual Profiler (/visualizer)"]
+        Dashboard["Developer Dashboard (/dashboard)"]
+    end
 
-| Database Feature | Architectural Implementation & Benefit |
-| :--- | :--- |
-| **Dual-ID Isolation** | Internal queries and foreign key relationships utilize auto-incremented `BIGINT` markers, while external client APIs expose random `UUIDv4` hashes (`public_id`) to prevent malicious record enumeration. |
-| **Production Soft Deletes** | Core records leverage a `deleted_at` timestamp coupled with conditional unique database indexes (e.g., `WHERE deleted_at IS NULL`) to safely preserve historical submission logs without violating uniqueness constraints. |
-| **Compound Query Indexing** | High-concurrency query channels are optimized via composite indexes (e.g., `TestCase(problem_id, order_no)`) to eliminate sorting overhead during evaluation payload streaming. |
-| **Decoupled Language Matrix** | All compiler configurations, Docker image tags, build flags, and file extensions are stored in an autonomous `languages` table, enabling new runtime integrations via database entries rather than source code redeployments. |
+    subgraph Gateway ["API & Real-Time Gateway (Express 5)"]
+        REST["REST API Gateway (/api/v1)"]
+        Sockets["Socket.io WebSocket Hub"]
+        AuthGuard["JWT HttpOnly Cookie Firewall"]
+        ZodGuard["Zod Schema Validation Guard"]
+    end
+
+    subgraph Services ["Service Orchestration Tier"]
+        JudgeSvc["Judge Service (Fail-Fast Batch Runner)"]
+        ArenaSvc["Arena Engine (State Machine & Telemetry)"]
+        InterviewSvc["Mock Interview Service (Conversational Core)"]
+        ProfilerSvc["Visual Profiler (Gemini Step Tracer)"]
+        AiMentorship["AI Mentorship (Tiered Hints & Diagnosis)"]
+        RefereeSvc["AI Grandmaster Referee (100-pt Rubric)"]
+    end
+
+    subgraph Sandboxes ["Docker Micro-Containers"]
+        PyBox["python:3.11-slim (256MB / No-Network)"]
+        CppBox["gcc:13-alpine (256MB / No-Network)"]
+        NodeBox["node:20-alpine (256MB / No-Network)"]
+    end
+
+    subgraph Persistence ["Persistence & Intelligence"]
+        Prisma["Prisma ORM 7 + Driver Adapter"]
+        Postgres[("PostgreSQL 16+ Production DB")]
+        Gemini["Google Gemini 2.5 Flash / Cascade"]
+    end
+
+    Client --> Gateway
+    Gateway --> Services
+    JudgeSvc --> Sandboxes
+    Services --> Persistence
+    ArenaSvc --> Sockets
+    InterviewSvc --> Sockets
+```
 
 ---
 
-### Milestone 2: Express Foundation & Secure Session Authentication
-A robust layered N-tier backend separating incoming network payloads, Zod data parsing rules, cryptographic verification, and transactional commands.
+## 🏛️ Milestones & Engineering Deliverables
 
-| Auth Endpoint | Method | Security & Functional Specification |
-| :--- | :--- | :--- |
-| `/api/v1/auth/register` | `POST` | Validates uniqueness constraints, hashes credentials using Bcrypt, and creates user records. |
-| `/api/v1/auth/login` | `POST` | Issues a cryptographically signed JWT packed securely into an `HttpOnly` browser cookie to mitigate XSS vulnerabilities. |
-| `/api/v1/auth/logout` | `POST` | Terminates active user sessions instantly by clearing authorization cookies. |
-| `/api/v1/auth/me` | `GET` | Fetches active profile data for state restoration across client page refreshes. |
+### Milestone 1: Core Relational Database Specification
+- **Dual-ID Isolation Pattern:** `id: BIGINT` for internal foreign key joins; `public_id: UUIDv4` for external API masking.
+- **Production Soft Deletes:** `deleted_at` timestamp with conditional partial unique indexes (`WHERE deleted_at IS NULL`).
+- **Composite Performance Indexes:** High-throughput indices on `test_cases(problem_id, order_no)` and `submissions(user_id, problem_id)`.
+- **Decoupled Language Matrix:** Compiler flags, image tags, and runtimes stored in `languages` table.
 
----
+### Milestone 2: Express Foundation & Cryptographic Session Authentication
+- **Layered N-Tier Tree:** Decoupled `config`, `routes`, `middlewares`, `controllers`, `services`, and `sockets`.
+- **Bcrypt Security:** 12-round salted asynchronous password hashing.
+- **HttpOnly Cookie Sessions:** Cryptographically signed JWT tokens dispatched in `HttpOnly`, `SameSite=Lax` cookies to mitigate XSS vulnerabilities.
 
 ### Milestone 3: Problem Management Subsystem & Query Filtering
-Handles programming challenges through an isolated multi-stage security and business validation pipeline.
-
-| Subsystem Layer | Responsibilities & Operations |
-| :--- | :--- |
-| **Security Guard Middleware** | Operates as a double-blind firewall, extracting session tokens from cookies, verifying `JWT_SECRET` signatures, and attaching user roles to the request stream. |
-| **Interface Controllers** | Validates incoming payloads using strict Zod schemas, parses route parameters, and packages outputs into uniform JSON envelopes. |
-| **Business Logic Services** | Dynamically computes URL-safe slugs, handles title collision namespaces, and translates JavaScript variables to SQL primitives. |
-| **Persistence Layer** | Executes optimized queries directly inside PostgreSQL via high-performance database client adapters. |
-
----
+- **Atomic Problem CRUD:** Slug auto-generation, search filters, and difficulty pagination.
+- **Zod Request Parsing:** Strict boundary validation on problem bodies, LaTeX equations, and markdown statements.
 
 ### Milestone 4: Nested Test Case Subsystem & Batch Ingestion
-To maintain relational safety, test cases are modeled as nested sub-resources mapped directly to their parent problems.
+- **Data Separation:** 2 public sample cases (`isSample: true`) rendered in the browser; 8 hidden cases (`isSample: false`) protected on the server.
+- **Batch Processing:** Atomic ingestion of test suites via `prisma.$transaction`.
 
-| Endpoint / Action | Method | Implementation Details |
-| :--- | :--- | :--- |
-| `/api/v1/problems/:problemPublicId/test-cases/batch` | `POST` | Bulk-ingests a complete suite of test cases in a single atomic transaction (`prisma.$transaction`). |
-| **Data Separation** | --- | Isolates public sample vectors (`isSample: true`) from hidden blind-test evaluation records (`isSample: false`). |
-
----
-
-### Milestone 5: Secure Code Execution Sandbox Engine
-Shifts the platform from a standard data-CRUD application into a secure remote execution environment capable of safely running untrusted code.
-
-| Sandbox Protection Layer | Mechanism & Hard Limits |
-| :--- | :--- |
-| **Resource Isolation** | Each container execution is hard-capped at **256MB RAM**, **0.5 CPU slices**, and fully isolated with `--network none` to block external network access. |
-| **Synchronous Termination** | Execution loops utilize blocking synchronous commands (`execSync`) paired with a `Promise.race` timeout wrapper to instantly issue a `docker kill` command on breach. |
-| **Output Normalizer** | Strips carriage returns (`\r\n` vs `\n`) and trailing whitespace to eliminate multi-platform line-ending discrepancies between local builds and Linux containers. |
-| **Verdict Matrix** | Classifies execution results into precise states: `ACCEPTED`, `WRONG_ANSWER`, `TIME_LIMIT_EXCEEDED`, and `RUNTIME_ERROR`. |
-
----
+### Milestone 5: Ephemeral Docker Sandbox Engine
+- **Resource Ceilings:** 256MB RAM, 0.5 CPU cores, `--network none` network isolation.
+- **Cross-Platform Output Normalizer:** Strips carriage returns (`\r\n` vs `\n`) across host OS and Linux containers.
+- **Verdict Matrix:** Precise classification: `ACCEPTED`, `WRONG_ANSWER`, `TIME_LIMIT_EXCEEDED`, `RUNTIME_ERROR`.
 
 ### Milestone 6: Persistent Submissions & Atomic Aggregations
-Tracks user performance and metrics through non-blocking transactional write pipelines.
+- **Two-Phase Lifecycle:** Initial `PENDING` write followed by atomic verdict resolution.
+- **Anti-Exploit Counters:** Increment unique accepted challenge counters without duplicate metrics on repeat submissions.
 
-| Feature | Implementation Detail |
-| :--- | :--- |
-| **Dual-State Pipeline** | Submissions are initially saved under a `PENDING` status for immediate client feedback, then updated with final verdict metrics upon container completion. |
-| **Anti-Exploit Aggregations** | Automatically updates user and problem submission tallies. If a submission receives an `ACCEPTED` verdict, the engine checks prior successful runs to prevent double-counting metrics. |
+### Milestone 7: AI-Powered Code Analysis & Mentorship
+- **Tiered Hints Engine:** 3-tier progressive hints (Conceptual, Algorithmic Pattern, Pseudocode).
+- **Failure Diagnosis ("Why Did My Code Fail"):** Identifies root cause logic flaws and edge cases.
+- **Asymptotic Big-O Complexity:** Automated Time and Space Complexity calculation with algorithmic justifications.
 
----
+### Milestone 8: Monaco Workspace & Interactive IDE
+- **Split-Pane Layout:** Drag-handle resizable panels with console I/O, test case runners, and problem statements.
+- **Theme Skinning:** `synapse` dark, `midnight` deep blue, and `cyberpunk` neon themes.
 
-### Milestone 7: AI-Powered Code Analysis Engine (Gemini Integration)
-Transforms the platform into an automated computer science mentor using Google’s modern production SDK (`@google/genai`).
+### Milestone 9: Role-Based Admin Panel & Edge Middleware
+- **RBAC Security Guard:** Edge middleware restricting administrative control centers to `ADMIN` accounts.
+- **AI Test Case Generator:** Gemini-powered generation of edge cases and stress tests.
 
-| AI Engine Feature | Implementation Advantage |
-| :--- | :--- |
-| **On-Demand Processing** | Operates as a post-grading API call, keeping the core Docker sandboxing loop lightning fast. |
-| **Anti-Double-Billing Cache** | Intercepts review requests for previously analyzed submissions, returning cached database rows without triggering redundant upstream API charges. |
-| **Lazy Initialization** | Constructs the GenAI client only upon endpoint invocation, eliminating boot-time crash bugs caused by environment variable loading sequences. |
-| **Data Normalization** | Translates raw JSON arrays returned by upstream models into structured markdown hint strings before writing to the `AiFeedback` table. |
-
----
-
-### Milestone 8: Full-Stack Frontend Ecosystem & Monaco Workspace
-An immersive developer interface built using Next.js App Router and professional UI components.
-
-| Frontend Module | Features & Architecture |
-| :--- | :--- |
-| **Global Auth Context** | Manages browser state distribution, profile synchronization, and automated layout protection. |
-| **Problem Directory & Filters** | Responsive data grid featuring live difficulty indicators (Emerald for Easy, Amber for Medium, Rose for Hard) and search sorting filters. |
-| **Split-Screen IDE** | Integrates Monaco Editor with custom drag-handle resizable panes, multi-palette theme skinning (`synapse`, `midnight`, `cyberpunk`), and console I/O tabs. |
-
----
-
-### Milestone 9: Role-Based Admin Panel & Edge Route Middleware
-Secures administrative boundaries and workflow automation via edge-level request inspection.
-
-| Protection Feature | Description |
-| :--- | :--- |
-| **Next.js Middleware** | Intercepts client navigation at the network edge, validating authentication tokens before rendering protected routes. |
-| **Admin Control Center** | A dedicated `/admin` dashboard restricted via Role-Based Access Control (RBAC), granting administrators tools for user management, system auditing, and batch utility tasks. |
-
----
-
-### Milestone 10: Real-Time Contests & Leaderboard Subsystem
-Expands the environment into an active competitive arena.
-
-| Competitive Component | Architecture Overview |
-| :--- | :--- |
-| **Contest Relational Model** | Manages live scheduling windows, weighted point allocations, and problem scoping via `Contest` and `ContestProblem` tables. |
-| **Real-Time Scoreboards** | Automatically triggers score aggregates upon an `ACCEPTED` verdict, assigning difficulty-weighted point totals (10 pts Easy, 30 pts Medium, 50 pts Hard). |
-
----
+### Milestone 10: Real-Time Contests & Global Leaderboards
+- **Contest Schedules:** Live contest countdowns, scheduled start times, and weighted scoreboards.
+- **Global Leaderboard:** Accurate ranking calculations based on accepted submissions.
 
 ### Milestone 11: Multi-Case Parallel Execution & Dynamic Templating
-Optimizes the grading engine for dynamic challenge ingestion and concurrent batch evaluation.
+- **Concurrent Batch Processor:** Parallel sandbox spawning with dynamic runtime token injection (`{{USER_CODE}}`, `{{INPUT}}`).
 
-| Feature | Implementation Detail |
-| :--- | :--- |
-| **Concurrent Batch Evaluation** | Replaces single-case sequential loops with a Promise-based batch processor executing all test cases simultaneously within isolated Docker instances. |
-| **Dynamic Token Injection** | Replaces hardcoded problem slugs with runtime token parsing (`{{USER_CODE}}`, `{{INPUT}}`), injecting user code and inputs dynamically. |
+### Milestone 12: Production Cloud Architecture (AWS Deployment)
+- **AWS RDS PostgreSQL:** Managed TLS-secured PostgreSQL cluster.
+- **AWS EC2 Ubuntu 24.04:** `m7i-flex.large` compute node with pre-pulled Docker compiler images and PM2 process management.
+
+### Milestone 13: 1v1 Real-Time Code Wars Arena
+- **Matchmaking & Private Lobbies:** Matchmaking queues and custom room codes (`ARENA-XXXX`).
+- **Telemetry Streaming:** Live keystroke streaming, line counts, and cursor tracking.
+- **Sentinel Anti-Cheat:** Detects clipboard dump malpractice and tab-switching blur events.
+- **Grandmaster AI Referee:** Multi-dimensional 100-point scoring rubric with Replay Theater persistence.
+
+### Milestone 14: Conversational AI Mock Interviewer
+- **Push-to-Talk Speech Engine:** Hardware microphone recording with live speech-to-text prompt streaming.
+- **4 Voice Personas:** Alex, Marcus, Sarah, Elena with custom speech synthesis.
+- **CS Fundamentals Bank:** OS, Concurrency, CN, DBMS, SQL, OOP.
+- **FAANG Scorecards:** Rigorous hiring rubric with actionable technical and communication feedback.
+
+### Milestone 15: Visual Algorithm Execution Profiler
+- **Dual Integration:** Standalone Playground (`/visualizer`) and Workspace Profiler (`/problems/[slug]`).
+- **Step-by-Step Memory Canvas:** Animated pointers, linked list reversal, stack canisters, queues, trees, and DP grids.
+- **Dynamic Input Profiling:** Evaluates any user code and inputs dynamically with zero hardcoding.
 
 ---
 
-### Milestone 12: Production Cloud Architecture (AWS Deployment)
-Migrates the local development stack into an enterprise-ready cloud topology.
+## 📊 End-to-End Verification Audit Results
 
-| Cloud Service | Production Configuration |
-| :--- | :--- |
-| **AWS RDS (PostgreSQL)** | Managed relational database cluster connected via secure TLS settings (`sslmode=require&uselibpqcompat=true`). |
-| **AWS EC2 (Ubuntu 24.04 LTS)** | Provisioned on an `m7i-flex.large` instance equipped with NVMe storage and pre-pulled compiler Docker images. |
-| **PM2 Process Manager** | Daemonizes the Node.js Express backend to run continuously 24/7 with automatic crash recovery configurations. |
+All subsystems and features are audited and verified via automated test suites:
+
+| Subsystem / Test Suite | File | Tests Run | Result | Pass Rate |
+| :--- | :--- | :---: | :---: | :---: |
+| **Visual Algorithm Profiler** | `verify_visual_profiler.js` | 33 | **33 PASSED** | **100%** |
+| **AI Mock Interview & 4 Voices**| `verify_mock_interview_voices.js` | 10 | **10 PASSED** | **100%** |
+| **CS Fundamentals & Custom Interview** | `verify_cs_and_custom_interview.js` | 43 | **43 PASSED** | **100%** |
+| **1v1 Arena & AI Referee** | `verify_step3_arena.js` | 23 | **23 PASSED** | **100%** |
+| **Core Judge & Tiered Hints** | `verify_step1_and_all_functions.js` | 21 | **21 PASSED** | **100%** |
+| **Admin Problem CRUD & AI Tests**| `test_admin_crud.js` | 5 | **5 PASSED** | **100%** |
+| **Frontend TypeScript Typecheck**| `npx tsc --noEmit` | — | **0 Errors** | **100%** |
+| **TOTAL** | | **135** | **135 PASSED** | **100%** |
+
+---
+
+## ⚡ Quick Start & Local Setup
+
+### 1. Prerequisites
+- **Node.js** >= 20.x
+- **Docker Desktop** (running with Linux containers enabled)
+- **PostgreSQL** 16+
+
+### 2. Clone & Environment Setup
+```bash
+git clone https://github.com/bharadwaj0077/AI-Online-Judge.git
+cd AI-Online-Judge
+```
+
+Create `backend/.env`:
+```env
+PORT=5000
+DATABASE_URL="postgresql://postgres:password@localhost:5432/online_judge_db"
+JWT_SECRET="your-super-secure-jwt-secret-key-at-least-32-chars"
+GEMINI_API_KEY="your-gemini-api-key"
+NODE_ENV="development"
+```
+
+Create `frontend/.env.local`:
+```env
+NEXT_PUBLIC_API_URL="http://localhost:5000/api/v1"
+```
+
+### 3. Database Initialization & Seeding
+```bash
+cd backend
+npm install
+npx prisma db push
+npm run dev
+```
+
+### 4. Frontend Launch
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## 📚 Detailed Documentation Directory
+- [REST & WebSocket API Reference](docs/api.md)
+- [System Architecture & UML Diagrams](docs/architecture.md)
+- [Database Schema & ER Diagrams](docs/database.md)
+- [Engineering Roadmap](docs/roadmap.md)

@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { LayoutDashboard, CheckCircle2, Trophy, Zap, Code2, Loader2, Award } from "lucide-react";
+import Link from "next/link";
+import { LayoutDashboard, CheckCircle2, Trophy, Zap, Code2, Loader2, Award, Swords, Bot, Eye, ArrowRight } from "lucide-react";
 
 interface UserStats {
   problemsSolved: number;
@@ -95,6 +96,59 @@ export default function UserDashboardPage() {
             <Award className="h-4 w-4 text-purple-400" /> Global Rank
           </span>
           <div className="text-2xl font-bold text-purple-400">{stats.globalRank}</div>
+        </div>
+      </div>
+
+      {/* FLAGSHIP PLATFORMS QUICK ACCESS */}
+      <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-3 font-mono">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+            ⚡ Synapse Advanced Interactive Labs
+          </span>
+          <span className="text-[10px] text-zinc-500">Real-Time WebSocket & AI Engines</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Link
+            href="/arena"
+            className="p-3.5 rounded-xl border border-rose-500/30 bg-rose-950/10 hover:bg-rose-950/30 hover:border-rose-500/60 flex items-center justify-between transition-all group"
+          >
+            <div className="flex items-center gap-2.5">
+              <Swords className="h-4 w-4 text-rose-500 group-hover:scale-110 transition-transform" />
+              <div>
+                <div className="text-xs font-bold text-white group-hover:text-rose-300">1v1 Code Wars</div>
+                <div className="text-[10px] text-zinc-500">Live PvP & AI Duel</div>
+              </div>
+            </div>
+            <ArrowRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-rose-400 transition-colors" />
+          </Link>
+
+          <Link
+            href="/interview"
+            className="p-3.5 rounded-xl border border-cyan-500/30 bg-cyan-950/10 hover:bg-cyan-950/30 hover:border-cyan-500/60 flex items-center justify-between transition-all group"
+          >
+            <div className="flex items-center gap-2.5">
+              <Bot className="h-4 w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+              <div>
+                <div className="text-xs font-bold text-white group-hover:text-cyan-300">AI Mock Interview</div>
+                <div className="text-[10px] text-zinc-500">4 Voice Personas & OS</div>
+              </div>
+            </div>
+            <ArrowRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-cyan-400 transition-colors" />
+          </Link>
+
+          <Link
+            href="/visualizer"
+            className="p-3.5 rounded-xl border border-purple-500/30 bg-purple-950/10 hover:bg-purple-950/30 hover:border-purple-500/60 flex items-center justify-between transition-all group"
+          >
+            <div className="flex items-center gap-2.5">
+              <Eye className="h-4 w-4 text-purple-400 group-hover:scale-110 transition-transform" />
+              <div>
+                <div className="text-xs font-bold text-white group-hover:text-purple-300">Visual Profiler</div>
+                <div className="text-[10px] text-zinc-500">Animated Step Tracer</div>
+              </div>
+            </div>
+            <ArrowRight className="h-3.5 w-3.5 text-zinc-500 group-hover:text-purple-400 transition-colors" />
+          </Link>
         </div>
       </div>
 

@@ -1,546 +1,361 @@
-# 🛣️ REST API Interface Specification — Online Judge Engine
+# 🛣️ REST & Real-Time WebSocket API Specification — SynapseJudge Engine
 
-This document outlines the operational network pathways, payload validation boundaries, cryptographic state mutations, and integration test specifications exposed by the backend routing tier via the global versioned network path prefix `/api/v1`.
-
----
-
-## 1. Global Network Layer Baselines
-
-- **Base URL Prefix:** `http://localhost:5000/api/v1`
-- **Default Transportation Format:** `application/json`
-- **Session Transport Layer:** Server-signed tokens packed into stateful, secure cookies to isolate sessions from browser scripting memory vulnerabilities.
+This document provides the complete, production-grade technical specification for all RESTful endpoints and real-time WebSocket pipelines provided by the SynapseJudge platform under the global API version prefix `/api/v1`.
 
 ---
 
-## 2. Uniform JSON Response Envelopes
+## 1. Global Network Layer Standards
 
-The gateway wraps all outgoing responses in standardized JSON wrappers. This allows frontend clients and automated API runners to consistently parse success metrics and handle validation errors.
+- **Base URL (Local):** `http://localhost:5000/api/v1`
+- **Base URL (Production AWS):** `https://api.synapsejudge.com/api/v1`
+- **Default Data Format:** `application/json`
+- **Authentication & Security:** Cryptographically signed JWT tokens issued via `HttpOnly`, `SameSite=Lax`, and `Secure` (in production) cookies, isolating session keys from browser memory extraction and XSS vectors.
+- **WebSocket Gateway:** Real-Time Socket.io 4.8+ engine mounted directly on the HTTP server layer.
 
-### A. Operational Success Wrapper (2xx / 3xx Status Codes)
+---
 
-Returned when an endpoint passes its computational logic cleanly.
+## 2. Uniform Response Envelopes
 
+### A. Success Envelope (2xx HTTP Status)
 ```json
 {
   "success": true,
-  "message": "Human-readable description tracking the completed action.",
+  "message": "Descriptive message tracking the completed action.",
   "data": {}
 }
 ```
 
-### B. Request Body Validation Errors (400 Bad Request)
-
-Returned when incoming request bodies fail the structural constraints enforced by the underlying Zod validation schemas.
-
+### B. Validation Error Envelope (400 Bad Request)
+Emitted by the Zod Schema Validation Guard when incoming payloads violate boundary constraints.
 ```json
 {
   "success": false,
   "message": "Validation failed parsing incoming parameters.",
   "errors": {
-    "_errors": [],
-    "username": {
-      "_errors": ["Username must contain at least 3 characters"]
-    },
-    "email": {
-      "_errors": ["Invalid email structure"]
-    },
-    "password": {
-      "_errors": ["Password must contain at least 8 elements"]
-    }
+    "field": ["Specific error constraint message"]
   }
 }
 ```
 
-### C. Runtime Exception Errors (4xx / 5xx Status Codes)
-
-Returned when a request fails authorization checks, hits data collisions, or triggers internal server faults.
-
+### C. Runtime & Exception Envelope (4xx / 5xx HTTP Status)
 ```json
 {
   "success": false,
-  "message": "Specific runtime or structural error statement describing the exception.",
-  "stack": "Error details exposed strictly within [development] environments only."
+  "message": "Detailed runtime error description.",
+  "stack": "Stack trace exposed only in [development] mode."
 }
 ```
 
 ---
 
-## 3. Core API Endpoint Catalog
+## 3. Authentication & Profile Subsystem
 
-### 1. Gateway Health Probe
-
-- **HTTP Method:** `GET`
-- **Target Path:** `/health`
-- **Access Control:** Public
-- **Description:** Monitors gateway processing conditions and verifies runtime pipeline accessibility.
-
-**Success Outflow (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Online Judge Engine Gateway Live."
-}
-```
-
----
-
-### 2. Register User Profile
-
-- **HTTP Method:** `POST`
-- **Target Path:** `/auth/register`
-- **Access Control:** Public
-- **Description:** Parses credentials, evaluates data layout rules via Zod, verifies email/username uniqueness, hashes passwords via Bcrypt, and saves a new user record.
-
-**Request Payload Parameters:**
-
-| Parameter | Type | Required | Constraints |
-|---|---|---|---|
-| `username` | String | Required | Minimum 3 characters, maximum 30 characters. Alphanumeric and underscores only. |
-| `email` | String | Required | Must match a structural, RFC-compliant email layout. |
-| `password` | String | Required | Enforced structural minimum length of 8 characters. |
-| `fullName` | String | Optional | Descriptive real identity naming string up to 100 characters. |
-
-**Sample Input Payload:**
-
-```json
-{
-  "username": "developer_alpha",
-  "email": "alpha@codeforge.org",
-  "password": "secure_password_123",
-  "fullName": "Alpha Developer"
-}
-```
-
-**Success Outflow (201 Created):**
-
-```json
-{
-  "success": true,
-  "message": "User account identity established successfully.",
-  "data": {
-    "publicId": "e2da157f-1d4e-4f18-a682-1c7c91d4e28a",
-    "username": "developer_alpha",
-    "email": "alpha@codeforge.org"
+### `POST /auth/register`
+Creates a new coder account with salted password hashing (Bcrypt with 12 workload rounds).
+- **Access:** Public
+- **Request Body:**
+  ```json
+  {
+    "username": "coder_pro",
+    "email": "coder@domain.com",
+    "password": "SecurePassword123!"
   }
-}
-```
-
----
-
-### 3. Authenticate User Session
-
-- **HTTP Method:** `POST`
-- **Target Path:** `/auth/login`
-- **Access Control:** Public
-- **Description:** Verifies user credentials against active database records. If the password matching check passes, the engine generates an asymmetric JSON Web Token (JWT) and writes it directly to an encrypted browser cookie.
-- **Security Side Effects:** Sets a browser cookie named `token` with flags: `HttpOnly`, `Secure=conditional` (enabled in production), `SameSite=Lax`, and an explicit `maxAge` of 7 days.
-
-**Request Payload Parameters:**
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `username` | String | Required | Account handle text. |
-| `password` | String | Required | Plaintext matching key word string. |
-
-**Sample Input Payload:**
-
-```json
-{
-  "username": "developer_alpha",
-  "password": "secure_password_123"
-}
-```
-
-**Success Outflow (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Authentication handshake passed successfully.",
-  "data": {
-    "publicId": "e2da157f-1d4e-4f18-a682-1c7c91d4e28a",
-    "username": "developer_alpha",
-    "role": "USER"
-  }
-}
-```
-
----
-
-### 4. Terminate User Session
-
-- **HTTP Method:** `POST`
-- **Target Path:** `/auth/logout`
-- **Access Control:** Public
-- **Description:** Instantly revokes individual user validation cookies and purges token parameters across active network clients.
-
-**Success Outflow (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Session token terminated successfully."
-}
-```
-
----
-
-## 4. Integration Verification Suite History
-
-The core routing framework is verified against 12 automated integration testing milestones, tracking constraint thresholds, schema limits, database error handling, and authorization states.
-
-### 📊 Integration Verification Performance Matrix
-
-| Index ID | Test Condition Target | Target Endpoint Route | Input Body Payload Type | Expected Status | Actual Status | Operational Result Status |
-|---|---|---|---|---|---|---|
-| 1000 | Health Check Pipeline | GET /health | None | 200 OK | 200 OK | 🟩 PASS |
-| 2000 | User Registration - Happy Path | POST /auth/register | Complete Valid JSON | 201 Created | 201 Created | 🟩 PASS |
-| 3000 | Registration - Duplicate Email Check | POST /auth/register | Existing Email Address | 409 Conflict | 409 Conflict | 🟩 PASS |
-| 4000 | Registration - Duplicate Username Check | POST /auth/register | Existing Account Username | 409 Conflict | 409 Conflict | 🟩 PASS |
-| 5000 | Registration - Bad Username RegEx | POST /auth/register | Whitespace / Special Characters | 400 Bad Request | 400 Bad Request | 🟩 PASS |
-| 6000 | Registration - Short Password Guard | POST /auth/register | Password Length < 8 | 400 Bad Request | 400 Bad Request | 🟩 PASS |
-| 7000 | Registration - Missing Core Keys | POST /auth/register | Incomplete Key Parameters | 400 Bad Request | 400 Bad Request | 🟩 PASS |
-| 8000 | User Session Login - Happy Path | POST /auth/login | Valid Match Credentials | 200 OK | 200 OK | 🟩 PASS |
-| 9000 | User Session Login - Bad Password | POST /auth/login | Mismatched Credential Words | 401 Unauthed | 401 Unauthed | 🟩 PASS |
-| 10000 | User Session Login - Missing User | POST /auth/login | Unregistered Username Handle | 401 Unauthed | 401 Unauthed | 🟩 PASS |
-| 11000 | User Session Login - Empty Fields | POST /auth/login | Empty Payload Boundaries | 400 Bad Request | 400 Bad Request | 🟩 PASS |
-| 12000 | User Session Logout - Safe Eviction | POST /auth/logout | None | 200 OK | 200 OK | 🟩 PASS |
-
-### 🔍 Verification Audit Conclusion
-
-The testing matrix registers a clean 12/12 PASS standard. All status flags, validation error layouts, data integrity blocks, and secure cookie headers match design patterns perfectly, freezing the authentication subsystem codebase as completely functional.
-
-
----
-
-## 5. Core Problems API Endpoint Catalog
-
-All endpoints below are exposed under the unified path prefix `/api/v1/problems`.
-
-### 1. Create Problem
-
-- **HTTP Method:** `POST`
-- **Target Path:** `/problems`
-- **Access Control:** Admin only (`ADMIN` role required)
-- **Description:** Takes markdown problem statements, processes code runner bounds, and establishes the database entry.
-
----
-
-### 2. Read Challenge Directory
-
-- **HTTP Method:** `GET`
-- **Target Path:** `/problems`
-- **Access Control:** Logged-in users
-- **Description:** Behaves intelligently based on permissions — standard `USER` accounts only receive publicly visible problems, while `ADMIN` profiles dynamically see hidden `DRAFT` items.
-
----
-
-### 3. Read Individual Challenge
-
-- **HTTP Method:** `GET`
-- **Target Path:** `/problems/:slug`
-- **Access Control:** Logged-in users
-- **Description:** Resolves deep problem details via an easy-to-read web slug (e.g., `/problems/two-sum-classic`) instead of exposing database IDs.
-
----
-
-### 4. Update Specification
-
-- **HTTP Method:** `PUT`
-- **Target Path:** `/problems/:publicId`
-- **Access Control:** Admin only
-- **Description:** Modifies constraints, descriptions, or difficulties. If an admin alters the challenge's title, the engine automatically recalculates and shifts the database search slug dynamically.
-
----
-
-### 5. Soft-Delete Archive
-
-- **HTTP Method:** `DELETE`
-- **Target Path:** `/problems/:publicId`
-- **Access Control:** Admin only
-- **Description:** Rather than performing a destructive hard-delete that would wipe historical submission logs, it updates a `deletedAt` timestamp. The item vanishes from active lists while preserving complete historic database references.
-
----
-
-## 6. Integration Verification Suite — Problems Module
-
-The Problems API is verified against 11 automated integration testing milestones covering authentication, authorization, validation boundaries, and soft-delete isolation.
-
-### 📊 Integration Verification Performance Matrix
-
-| Stage ID | Target Test Case Description | Route Endpoint | Expected HTTP Status | Verified System Component |
-|---|---|---|---|---|
-| 1000 | Create Problem - Anonymous Request | POST /problems | 401 Unauthorized | Session Cookie Firewall (requireAuth) |
-| 2000 | Create Problem - Standard User Attempt | POST /problems | 403 Forbidden | Role Privilege Gate (requireAdmin) |
-| 3000 | Create Problem - Empty Payload Input | POST /problems | 400 Bad Request | Zod Contract Interceptor |
-| 4000 | Create Problem - Bounds Limits Violations | POST /problems | 400 Bad Request | Zod Numeric Min/Max Filters |
-| 5000 | Create Problem - Successful Ingestion | POST /problems | 201 Created | Bcrypt / Prisma Ingestion & Auto-Slug Core |
-| 6000 | Read Operations - Fetch Active Directory | GET /problems | 200 OK | Array Selection Matrix |
-| 7000 | Read Operations - Load Problem Target Specifications | GET /problems/:slug | 200 OK | Slug Lookup Relational Layer |
-| 8000 | Read Operations - Query Unregistered Slug | GET /problems/null | 404 Not Found | Service Level Null Catch Boundary |
-| 9000 | Update Operations - Apply Structural Mutations | PUT /problems/:publicId | 200 OK | Prisma Update & Dynamic Slug Recalculation |
-| 10000 | Soft Delete Operation - Archive Target Challenge | DELETE /problems/:publicId | 200 OK | System Soft-Delete Logic (deletedAt) |
-| 11000 | Isolation Verification - Read Soft Deleted Row | GET /problems/:slug | 404 Not Found | Data Isolation Visibility Query Filters |
-
-### 🔍 Verification Audit Conclusion
-
-The testing matrix registers a clean 11/11 PASS standard. Authentication enforcement, role-based authorization, Zod validation boundaries, and soft-delete data isolation all match design patterns perfectly, freezing the problem management subsystem as completely functional.
-
----
-
-## 7. Core Test Case API Endpoint Catalog
-
-Test case routes are nested sub-resources, mounted under their parent problem via the path prefix `/api/v1/problems/:problemPublicId/test-cases`.
-
-### 1. Batch Upload Test Cases
-
-- **HTTP Method:** `POST`
-- **Target Path:** `/problems/:problemPublicId/test-cases/batch`
-- **Access Control:** Admin only
-- **Description:** Accepts an array of test case objects and ingests them as a single atomic transaction. Resolves the parent problem's `publicId` to its internal numeric `id`, deletes any existing test cases for that problem (`deleteMany`), then inserts the new batch inside a `prisma.$transaction`. If any single insert fails, the entire batch rolls back — no partial or fragmented test data is ever persisted.
-
-**Request Payload Parameters (per test case object):**
-
-| Parameter | Type | Required | Constraints |
-|---|---|---|---|
-| `input` | String | Required | Evaluation input string, may include literal line breaks (e.g. `[2,7,11,15]\n9`) to simulate stdin. |
-| `expectedOutput` | String | Required | Expected output string for evaluation comparison. |
-| `isSample` | Boolean | Required | `true` for publicly visible example cases shown in the UI; `false` for hidden evaluation vectors used to blind-test submissions. |
-| `score` | Integer | Required | Test case weight. Must be a positive integer (`.int().min(1)`). |
-
-**Sample Input Payload:**
-
-```json
-{
-  "testCases": [
-    {
-      "input": "[2,7,11,15]\n9",
-      "expectedOutput": "[0,1]",
-      "isSample": true,
-      "score": 10
-    },
-    {
-      "input": "[3,2,4]\n6",
-      "expectedOutput": "[1,2]",
-      "isSample": false,
-      "score": 20
+  ```
+- **Response (201 Created):**
+  ```json
+  {
+    "success": true,
+    "message": "User registered successfully.",
+    "data": {
+      "user": {
+        "id": "1",
+        "publicId": "e5b8d2a1-7c9f-4b0e-8d2a-1c7b9f4b0e8d",
+        "username": "coder_pro",
+        "email": "coder@domain.com",
+        "role": "USER"
+      }
     }
-  ]
-}
-```
-
-**Behavior Notes:**
-
-- `orderNo` is calculated automatically and is not supplied by the client — it is derived from each item's position in the array (`orderNo: index + 1`), guaranteeing deterministic execution order.
-- Re-running this endpoint for the same problem fully overwrites the previous test case set rather than appending to it.
-
-**Success Outflow (201 Created):**
-
-```json
-{
-  "success": true,
-  "message": "Test case batch ingested successfully.",
-  "data": {
-    "problemPublicId": "e2da157f-1d4e-4f18-a682-1c7c91d4e28a",
-    "count": 2
   }
-}
-```
+  ```
 
+### `POST /auth/login`
+Authenticates credentials and dispatches an `HttpOnly` JWT cookie (`token`).
+- **Access:** Public
+- **Request Body:**
+  ```json
+  {
+    "identifier": "coder_pro", // or email
+    "password": "SecurePassword123!"
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "message": "Login successful.",
+    "data": {
+      "user": { "username": "coder_pro", "role": "USER" },
+      "token": "<JWT_STRING>"
+    }
+  }
+  ```
+
+### `POST /auth/logout`
+Instantly revokes session cookies.
+- **Access:** Authenticated
+- **Response (200 OK):** Sets cookie expiry to 1970 UTC.
+
+### `GET /auth/me`
+Restores user session and profile data across client page refreshes.
+- **Access:** Authenticated via cookie or Bearer token.
+- **Response (200 OK):** Returns active user object.
 
 ---
 
-## 8. Judge Engine API Endpoint Catalog
+## 4. Problem Directory & Code Sandbox Execution
 
-The judge engine exposes an isolated evaluation channel for submitting raw code against a problem's test suite. All endpoints are under the path prefix `/api/v1/judge`.
+### `GET /problems`
+Fetches the catalog of competitive problems with search, difficulty filtering, and pagination.
+- **Query Parameters:** `difficulty` (EASY|MEDIUM|HARD), `search` (string), `page` (number), `limit` (number).
+- **Access:** Public
 
-### 1. Evaluate Code Submission
+### `GET /problems/:slug`
+Retrieves a problem's statement, constraints, templates, and **sample test cases only** (hidden test cases are strictly excluded from client responses).
+- **Access:** Public
 
-- **HTTP Method:** `POST`
-- **Target Path:** `/judge/evaluate/:problemPublicId`
-- **Access Control:** Logged-in users
-- **Description:** Accepts a raw code string and a language identifier, spins up an isolated Docker sandbox, executes the code against all test cases for the target problem, and returns a comprehensive verdict report. Each test case is evaluated sequentially. On the first failure, evaluation short-circuits to avoid unnecessary CPU usage on remaining cases.
+### `POST /problems/:slug/run`
+Executes code inside an ephemeral isolated Docker container (`--network none`, 256MB RAM limit) against custom or sample inputs.
+- **Access:** Authenticated
+- **Request Body:**
+  ```json
+  {
+    "code": "def solve(nums): return sum(nums)",
+    "language": "python3",
+    "customInput": "[1, 2, 3, 4]"
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "output": "10\n",
+      "executionTimeMs": 42,
+      "memoryUsedKb": 14200,
+      "verdict": "ACCEPTED"
+    }
+  }
+  ```
 
-**Sandbox Hardware Limits Enforced Per Execution:**
+### `POST /problems/:slug/submit`
+Executes full LeetCode-grade evaluation across all 10 sample and hidden test cases with **fail-fast** termination on the first failing case.
+- **Access:** Authenticated
+- **Request Body:**
+  ```json
+  {
+    "code": "class Solution: ...",
+    "language": "python3"
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "verdict": "ACCEPTED",
+      "passedTestCases": 10,
+      "totalTestCases": 10,
+      "executionTimeMs": 48,
+      "memoryUsedKb": 15400
+    }
+  }
+  ```
 
-| Resource | Hard Limit |
-|---|---|
-| RAM | 256MB |
-| CPU | 0.5 cores |
-| Network | Disabled (`--network none`) |
-| Time | Per-problem `timeLimit` (ms) |
+---
 
-**Request Payload Parameters:**
+## 5. AI Mentorship & Intelligence Engine
 
-| Parameter | Type | Required | Description |
+### `POST /problems/:id/tiered-hints`
+Generates or retrieves 3 progressive, calibrated hints (Tier 1 Conceptual, Tier 2 Algorithmic Pattern, Tier 3 Pseudocode) without spoiling direct answers.
+- **Access:** Authenticated
+- **Request Body:**
+  ```json
+  {
+    "code": "class Solution: ...",
+    "language": "python3",
+    "unlockedTiers": [1]
+  }
+  ```
+- **Response (200 OK):** Returns array of hints with `tier`, `title`, `content`, and `keyTakeaway`.
+
+### `POST /problems/:id/diagnose`
+Analyzes a failed submission and explains the exact logical root cause, edge case violation, and suggested correction.
+- **Access:** Authenticated
+- **Request Body:**
+  ```json
+  {
+    "code": "...",
+    "language": "python3",
+    "failedTestCase": { "input": "[3, 3]", "expected": "6", "actual": "0" },
+    "verdict": "WRONG_ANSWER"
+  }
+  ```
+
+### `POST /problems/:id/verdict`
+Calculates asymptotic Big-O Time and Space Complexity for candidate code using AST and execution pattern heuristics.
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "timeComplexity": "O(N)",
+      "spaceComplexity": "O(1)",
+      "explanation": "Single-pass linear scan with constant additional pointer variables."
+    }
+  }
+  ```
+
+---
+
+## 6. Visual Algorithm Execution Profiler
+
+### `GET /profiler/presets`
+Returns all 7 registered algorithm visual presets with dual-language starter implementations.
+- **Presets Available:** `two-pointers`, `binary-search`, `linked-list`, `stack`, `queue`, `tree`, `matrix`.
+- **Response (200 OK):** Array of presets with descriptions and starter code.
+
+### `POST /profiler/trace` & `POST /problems/:slug/trace`
+Dynamically evaluates user code and input to generate a step-by-step memory frame execution timeline.
+- **Request Body:**
+  ```json
+  {
+    "code": "def two_sum_sorted(nums, target): ...",
+    "language": "python3",
+    "input": "nums = [2, 4, 7, 11, 15, 20], target = 18",
+    "problemTitle": "Two Pointers Sum"
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "totalSteps": 27,
+    "steps": [
+      {
+        "stepIndex": 1,
+        "lineNumber": 16,
+        "action": "INIT",
+        "explanation": "Calling two_sum_sorted with nums=[2, 4, 7, 11, 15, 20] and target=18.",
+        "structures": {
+          "arrays": [{ "id": "nums", "name": "nums", "elements": [...] }],
+          "pointers": [{ "name": "left", "arrayId": "nums", "index": 0, "color": "#38bdf8" }],
+          "variables": { "left": 0, "right": 5, "target": 18 }
+        }
+      }
+    ],
+    "summary": "Execution completed in 27 steps finding indices [0, 4]."
+  }
+  ```
+
+---
+
+## 7. 1v1 Code Wars Arena (REST & WebSockets)
+
+### REST Endpoints
+- `GET /arena/matches`: Lists recent matches and live duels.
+- `GET /arena/custom-room`: Generates an alphanumeric private match code (`ARENA-XXXX`).
+- `GET /arena/replay/:matchId`: Retrieves the full millisecond-precision replay timeline and persisted AI Grandmaster Referee decision.
+
+### WebSocket Interface (Namespace: `/`)
+Connected clients participate in real-time PvP coding duels:
+
+| Event Name | Direction | Payload Structure | Description |
 |---|---|---|---|
-| `code` | String | Required | Raw source code string submitted by the user. |
-| `language` | String | Required | Language identifier (e.g. `python`, `cpp`, `java`). |
-
-**Sample Input Payload:**
-
-```json
-{
-  "code": "def twoSum(nums, target):\n    seen = {}\n    for i, n in enumerate(nums):\n        if target - n in seen:\n            return [seen[target - n], i]\n        seen[n] = i",
-  "language": "python"
-}
-```
-
-**Success Outflow (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Evaluation complete.",
-  "data": {
-    "verdict": "ACCEPTED",
-    "passed": 5,
-    "total": 5,
-    "peakExecutionTime": 134
-  }
-}
-```
-
-**Possible Verdict Values:**
-
-| Verdict | Meaning |
-|---|---|
-| `ACCEPTED` | All test cases passed within the time limit. |
-| `WRONG_ANSWER` | Code ran successfully but output did not match expected output. |
-| `TIME_LIMIT_EXCEEDED` | Execution exceeded the problem's allotted time limit. |
-| `RUNTIME_ERROR` | Code crashed with a non-zero exit code or unhandled exception. |
+| `arena:join_queue` | Client ➔ Server | `{ userId, username, mode, difficulty }` | Enters public matchmaking queue. |
+| `arena:create_room` | Client ➔ Server | `{ userId, username, roomCode, mode, difficulty }` | Hosts private match lobby. |
+| `arena:join_room` | Client ➔ Server | `{ userId, username, roomCode }` | Joins private match by code. |
+| `arena:spawn_ai_bot` | Client ➔ Server | `{ userId, username, mode, difficulty }` | Spawns CyberGrandmaster AI Practice Bot. |
+| `arena:keystroke` | Client ➔ Server | `{ matchId, userId, code, cursor }` | Broadcasts real-time typing progress. |
+| `arena:anti_cheat_alert` | Client ➔ Server | `{ matchId, userId, reason }` | Logs clipboard paste (>150 chars) or tab switch. |
+| `arena:submit_solution` | Client ➔ Server | `{ matchId, userId, code, verdict, passedCases }` | Submits solution for referee grading. |
+| `arena:surrender` | Client ➔ Server | `{ matchId, userId }` | Forfeits match immediately. |
+| `arena:match_start` | Server ➔ Client | `{ matchId, problem, player1, player2, durationSec }` | Fires when both players connect. |
+| `arena:opponent_progress`| Server ➔ Client | `{ userId, charCount, lineCount, cursor }` | Streams opponent code metrics. |
+| `arena:anti_cheat_warning`| Server ➔ Client | `{ totalWarnings, message }` | Warns player of detected malpractice. |
+| `arena:match_concluded` | Server ➔ Client | `{ match, decision: { winnerName, reason, scores } }` | Dispatches 100-pt AI referee verdict. |
 
 ---
 
-## 10. AI Code Review API Endpoint Catalog
+## 8. AI Conversational Mock Interviewer (REST & WebSockets)
 
-All endpoints are exposed under the unified path prefix `/api/v1/ai`.
+### REST Endpoints
+- `POST /interviews`: Spawns a new interview session with voice persona (`male_soft`, `male_bold`, `female_soft`, `female_bold`), topic (OS, CN, DBMS, SQL, OOP, Algorithms), seniority, and custom company.
+- `GET /interviews`: Returns user interview history and past scorecards.
+- `GET /interviews/:id`: Retrieves session status, problem brief, transcript history, and final scorecard.
+- `POST /interviews/:id/turn`: Dispatches spoken candidate text and returns interviewer reply.
+- `POST /interviews/:id/inspect`: Requests live code review feedback from the interviewer.
+- `POST /interviews/:id/end`: Finalizes interview and computes FAANG-calibrated hiring evaluation.
+- `GET /interviews/voice/preview?persona=male_soft`: Streams sample synthesized audio preview for voice selection.
 
-### 1. Request AI Code Review
+### WebSocket Interface (Namespace: `/`)
+Real-time, push-to-talk bidirectional voice and audio session stream:
 
-- **HTTP Method:** `POST`
-- **Target Path:** `/ai/review/:submissionPublicId`
-- **Access Control:** Authenticated session (`requireAuth`)
-- **Description:** Triggers an on-demand AI review for a specific submission. The controller first checks if a cached review already exists in the `ai_feedbacks` table — if so, it returns the cached result instantly without calling the upstream API. If no cache exists, it sends the source code and problem statement to Google Gemini, normalizes the response, persists the result, and returns the full analysis. Request body is empty; the target is resolved entirely from the URL parameter.
-
-**Request Body:** None (empty)
-
-**Success Outflow (201 Created — new review generated):**
-
-```json
-{
-  "success": true,
-  "message": "AI code critique compiled successfully.",
-  "data": {
-    "id": "1",
-    "publicId": "e3b8a920-412e-4cb3-911a-05187fc3c88f",
-    "submissionId": "1",
-    "analysis": "The solution correctly implements the optimal Two Sum approach using a hash map for O(1) average lookup times, completing verification in a single pass.",
-    "hints": "1. Review alternative competitive programming standard input parsing structures.\n2. Consider how nested loops change the resource footprint relative to this model.\n3. Think about how the dictionary behaves if passed a completely empty input array.",
-    "timeComplexity": "O(N)",
-    "spaceComplexity": "O(N)",
-    "createdAt": "2026-07-03T21:24:12.114Z"
-  }
-}
-```
-
-**Success Outflow (200 OK — cached review returned):**
-
-```json
-{
-  "success": true,
-  "message": "AI review fetched from cache.",
-  "data": {
-    "publicId": "e3b8a920-412e-4cb3-911a-05187fc3c88f",
-    "analysis": "...",
-    "hints": "...",
-    "timeComplexity": "O(N)",
-    "spaceComplexity": "O(N)"
-  }
-}
-```
-
----
-
-### 2. Fetch Stored AI Review
-
-- **HTTP Method:** `GET`
-- **Target Path:** `/ai/review/:submissionPublicId`
-- **Access Control:** Authenticated session (`requireAuth`)
-- **Description:** Fetches the previously stored AI feedback record for a specific submission from the `ai_feedbacks` table. Returns `404` if no review has been generated yet for that submission.
-
----
-
-## 11. Auth Controller Update — Dual-Identifier Login & Profile Endpoint
-
-### Updates to Existing Auth Routes
-
-#### Login (Updated)
-
-- **HTTP Method:** `POST`
-- **Target Path:** `/auth/login`
-- **Change:** The request body now accepts a unified `identifier` key instead of `username`, allowing users to log in with either their username or registered email address.
-
-**Updated Request Payload:**
-
-| Parameter | Type | Required | Description |
+| Event Name | Direction | Payload Structure | Description |
 |---|---|---|---|
-| `identifier` | String | Required | Either the account username or registered email address. |
-| `password` | String | Required | Plaintext password string. |
+| `interview:join` | Client ➔ Server | `{ interviewId, userId }` | Connects candidate to dedicated interview room. |
+| `interview:candidate_speech` | Client ➔ Server | `{ interviewId, userSpeech, currentCode, language }` | Dispatches candidate spoken input. |
+| `interview:request_hint` | Client ➔ Server | `{ interviewId, currentCode, language }` | Solicits contextual interview hint. |
+| `interview:request_review`| Client ➔ Server | `{ interviewId, currentCode, language }` | Requests line-by-line code evaluation. |
+| `interview:test_run` | Client ➔ Server | `{ interviewId, passed, total, error }` | Notifies interviewer of sandbox test run. |
+| `interview:end_session` | Client ➔ Server | `{ interviewId, finalCode, language, telemetry }` | Triggers final scorecard compilation. |
+| `interview:interviewer_status`| Server ➔ Client | `{ status: "thinking" \| "speaking" \| "idle" }` | Live interviewer state animation stream. |
+| `interview:interviewer_speech`| Server ➔ Client | `{ reply, audioUrl, transcript }` | Delivers AI interviewer speech response. |
+| `interview:scorecard_ready` | Server ➔ Client | `{ scorecard, verdict, strengths, weaknesses }` | Delivers comprehensive hiring scorecard. |
 
-**Sample Input Payload:**
+---
 
+## 9. Contests, Leaderboard & Metrics
+
+### `GET /contests`
+Lists scheduled, ongoing, and past algorithm contests with start times and duration windows.
+
+### `GET /leaderboard`
+Fetches global rankings calculated from accepted challenge submissions and contest points.
+
+### `GET /dashboard?userId=:id`
+Computes developer analytics:
 ```json
 {
-  "identifier": "developer_alpha",
-  "password": "secure_password_123"
+  "success": true,
+  "data": {
+    "problemsSolved": 14,
+    "totalProblems": 103,
+    "accuracyRate": "87.5%",
+    "globalRating": 1640,
+    "globalRank": "#12",
+    "recentActivity": [...]
+  }
 }
 ```
 
 ---
 
-#### Get Authenticated Profile (New)
+## 10. Admin Management (RBAC: `ADMIN` Only)
 
-- **HTTP Method:** `GET`
-- **Target Path:** `/auth/me`
-- **Access Control:** Authenticated session (`requireAuth`)
-- **Description:** Validates the active session cookie and returns the authenticated user's public profile data. Used by the frontend `AuthContext` on every page load to check login state.
+### `GET /admin/problems`
+Returns full problem directory including hidden test case counts and author metadata.
 
-**Success Outflow (200 OK):**
+### `POST /admin/problems`
+Creates a new problem with slug generation, difficulty assignment, and starter templates.
 
-```json
-{
-  "success": true,
-  "message": "Authenticated profile fetched successfully.",
-  "data": {
-    "publicId": "e2da157f-1d4e-4f18-a682-1c7c91d4e28a",
-    "username": "developer_alpha",
-    "email": "alpha@codeforge.org",
-    "role": "USER"
-  }
-}
-```
+### `PUT /admin/problems/:id`
+Updates problem statement, constraints, driver scripts, or reference solutions.
 
-## ⚖️ Judge API
+### `DELETE /admin/problems/:id`
+Executes safe soft-deletion preserving historical submissions.
 
-### Evaluate Submissions
-`POST /api/v1/judge/run`
+### `POST /admin/problems/:id/testcases/batch`
+Ingests an array of test cases atomically inside a single database transaction.
 
-Executes the provided code snippet against the test case parameters.
-
-**Request Body:**
-- `sourceCode`: (string) The user's solution code.
-- `language`: (string) Runtime engine key (e.g., `python3`, `cpp17`).
-- `customInput`: (string) The raw input arguments (e.g., `"[2,7,11,15], 9"`).
-- `problemId`: (string) Unique relational ID.
-
-**Response:**
-```json
-{
-  "success": true,
-  "stdout": "string", // Captured console output
-  "output": "string", // The final function return result
-  "expected": "string", // Author reference solution output
-  "error": null
-}
+### `POST /admin/ai/generate-testcases`
+Employs Gemini Cascade to generate 5-10 high-coverage boundary, edge-case, and large-scale inputs for any problem brief.
