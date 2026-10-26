@@ -12,6 +12,7 @@ import { prisma } from "./config/db";
 import { AiService } from "./services/ai.service";
 import { ArenaService } from "./services/arena.service";
 import { MockInterviewService } from "./services/mock-interview.service";
+import { VisualProfilerService } from "./services/visual-profiler.service";
 import { Verdict, Difficulty, ProblemVisibility, UserRole } from "@prisma/client";
 
 // Patch BigInt serialization capability natively into Express JSON encoders
@@ -1649,6 +1650,67 @@ app.post("/api/v1/interviews/:id/end", optionalAuth, async (req: AuthenticatedRe
   }
 });
 
+// ============================================================================
+// VISUAL ALGORITHM EXECUTION PROFILER API
+// ============================================================================
+
+// 1. Fetch predefined algorithm presets (Two Pointers, Binary Search, Stack, Queue, Tree, DP)
+app.get("/api/v1/profiler/presets", (req, res): void => {
+  try {
+    const presets = VisualProfilerService.getPresets();
+    res.status(200).json({ success: true, data: presets });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err?.message || "Failed to fetch presets" });
+  }
+});
+
+// 2. Generate step-by-step visual execution trace (custom code or playground)
+app.post("/api/v1/profiler/trace", async (req, res): Promise<void> => {
+  try {
+    const { code, language, input, problemTitle } = req.body;
+    if (!code || typeof code !== "string") {
+      res.status(400).json({ success: false, message: "Source code is required for trace generation." });
+      return;
+    }
+
+    const trace = await VisualProfilerService.generateVisualTrace({
+      code,
+      language: language || "python3",
+      input: input || "",
+      problemTitle: problemTitle || "Algorithm Profiler"
+    });
+
+    res.status(200).json({ success: true, data: trace });
+  } catch (err: any) {
+    console.error("Visual profiler trace error:", err);
+    res.status(500).json({ success: false, message: err?.message || "Failed to generate visual trace" });
+  }
+});
+
+// 3. Problem workspace specific trace route
+app.post("/api/v1/problems/:slug/trace", async (req, res): Promise<void> => {
+  try {
+    const { slug } = req.params;
+    const { code, language, input } = req.body;
+
+    const problem = await prisma.problem.findFirst({
+      where: { OR: [{ slug }, { id: !isNaN(Number(slug)) ? BigInt(slug) : undefined }] },
+      select: { title: true }
+    });
+
+    const trace = await VisualProfilerService.generateVisualTrace({
+      code: code || "",
+      language: language || "python3",
+      input: input || "",
+      problemTitle: problem?.title || slug
+    });
+
+    res.status(200).json({ success: true, data: trace });
+  } catch (err: any) {
+    console.error(`Problem [${req.params.slug}] visual profiler error:`, err);
+    res.status(500).json({ success: false, message: err?.message || "Failed to generate problem trace" });
+  }
+});
 
 app.use(errorHandler);
 

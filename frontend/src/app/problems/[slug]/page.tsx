@@ -22,9 +22,11 @@ import {
   RefreshCw,
   FileText,
   Cpu,
-  ArrowRight
+  ArrowRight,
+  Eye
 } from "lucide-react";
 import { TieredHintItem, FailedTestCaseDetail, FailureDiagnosis } from "@/types";
+import ProfilerCanvas, { VisualStepData } from "@/components/visualizer/ProfilerCanvas";
 
 interface ProblemDetail {
   id: string;
@@ -111,13 +113,19 @@ export default function ProblemWorkspaceCanvas() {
 
   const activeTheme = "vs-dark";
   const [activeCaseIdx, setActiveCaseIdx] = useState(0);
-  const [consoleTab, setConsoleTab] = useState<"testcase" | "result">("testcase");
+  const [consoleTab, setConsoleTab] = useState<"testcase" | "result" | "visualizer">("testcase");
+  const [visualizing, setVisualizing] = useState(false);
+  const [traceSteps, setTraceSteps] = useState<VisualStepData[]>([]);
+  const [traceSummary, setTraceSummary] = useState<string>("");
   const [testCases, setTestCases] = useState<TestCaseMetrics[]>([]);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
   const [leftWidth, setLeftWidth] = useState(42);
   const [consoleHeight, setConsoleHeight] = useState(270);
   const containerRef = useRef<HTMLDivElement>(null);
   const rightPaneRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<any>(null);
+  const monacoRef = useRef<any>(null);
+  const decorationsRef = useRef<string[]>([]);
   const isResizingWidthRef = useRef(false);
   const isResizingHeightRef = useRef(false);
 
@@ -382,6 +390,56 @@ export default function ProblemWorkspaceCanvas() {
       }
     ]);
     setActiveCaseIdx(testCases.length);
+  };
+
+  // --- VISUAL ALGORITHM EXECUTION PROFILER ACTIONS ---
+
+  const handleVisualizerLineChange = (lineNumber: number) => {
+    if (!editorRef.current || !monacoRef.current || !lineNumber) return;
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+
+    decorationsRef.current = editor.deltaDecorations(decorationsRef.current, [
+      {
+        range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+        options: {
+          isWholeLine: true,
+          className: "bg-cyan-500/20 border-l-4 border-cyan-400 shadow-sm",
+          glyphMarginClassName: "text-cyan-400 font-bold"
+        }
+      }
+    ]);
+
+    editor.revealLineInCenterIfOutsideViewport(lineNumber);
+  };
+
+  const handleVisualizeExecution = async () => {
+    if (!problem || visualizing) return;
+    setVisualizing(true);
+    setConsoleTab("visualizer");
+    if (consoleHeight < 360) {
+      setConsoleHeight(380);
+    }
+
+    try {
+      const activeTc = testCases[activeCaseIdx];
+      const inputStr = activeTc ? activeTc.inputs.map((i) => i.value).join("\n") : "";
+
+      const res = await api.post(`/problems/${problem.id}/trace`, {
+        code: editorCode,
+        language: selectedLang,
+        input: inputStr
+      });
+
+      if (res.data?.success && res.data.data) {
+        setTraceSteps(res.data.data.steps || []);
+        setTraceSummary(res.data.data.summary || "");
+      }
+    } catch (err) {
+      console.error("Visualizer execution error:", err);
+    } finally {
+      setVisualizing(false);
+    }
   };
 
   const currentCase = testCases[activeCaseIdx];
@@ -883,6 +941,21 @@ export default function ProblemWorkspaceCanvas() {
               <span>Ask AI</span>
             </button>
 
+            {/* VISUALIZE EXECUTION BUTTON */}
+            <button
+              onClick={handleVisualizeExecution}
+              disabled={visualizing || executing || submitting}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/50 bg-gradient-to-r from-cyan-950/70 to-indigo-950/70 hover:from-cyan-900/70 hover:to-indigo-900/70 text-xs font-bold py-1.5 px-3 text-cyan-300 shadow-md shadow-cyan-950/50 hover:shadow-cyan-500/20 cursor-pointer transition-all disabled:opacity-50"
+              title="Visualize step-by-step algorithm execution and pointer animations"
+            >
+              {visualizing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400" />
+              ) : (
+                <Eye className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
+              )}
+              <span>Visualize</span>
+            </button>
+
             {/* RUN CODE BUTTON */}
             <button
               onClick={handleRunCodeAction}
@@ -921,12 +994,17 @@ export default function ProblemWorkspaceCanvas() {
             language={getEditorLanguageType(selectedLang)}
             value={editorCode}
             onChange={(val) => setEditorCode(val || "")}
+            onMount={(editor, monaco) => {
+              editorRef.current = editor;
+              monacoRef.current = monaco;
+            }}
             options={{
               fontSize: 13,
               minimap: { enabled: false },
               automaticLayout: true,
               scrollBeyondLastLine: false,
-              tabSize: 4
+              tabSize: 4,
+              glyphMargin: true
             }}
           />
         </div>
@@ -968,6 +1046,23 @@ export default function ProblemWorkspaceCanvas() {
                       submissionResult.verdict === "ACCEPTED" ? "bg-emerald-400" : "bg-rose-500"
                     }`}
                   />
+                )}
+              </button>
+
+              <button
+                onClick={() => setConsoleTab("visualizer")}
+                className={`h-full border-b-2 px-3.5 cursor-pointer flex items-center gap-1.5 ${
+                  consoleTab === "visualizer"
+                    ? "border-cyan-400 text-cyan-300 font-bold"
+                    : "border-transparent text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Visualizer</span>
+                {traceSteps.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                    {traceSteps.length}
+                  </span>
                 )}
               </button>
             </div>
@@ -1303,6 +1398,46 @@ export default function ProblemWorkspaceCanvas() {
                   )}
                 </div>
               )}
+
+            {/* ========================================================================= */}
+            {/* 🎬 VISUAL ALGORITHM EXECUTION PROFILER PANEL                              */}
+            {/* ========================================================================= */}
+            {consoleTab === "visualizer" && (
+              <div className="space-y-4 font-sans">
+                {visualizing ? (
+                  <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-sm text-zinc-200">Evaluating Visual Trace...</h4>
+                      <p className="text-xs text-zinc-500">
+                        Analyzing line-by-line pointer trajectories, stack frames, and memory bounds.
+                      </p>
+                    </div>
+                  </div>
+                ) : traceSteps.length > 0 ? (
+                  <ProfilerCanvas
+                    steps={traceSteps}
+                    summary={traceSummary}
+                    onActiveLineChange={handleVisualizerLineChange}
+                  />
+                ) : (
+                  <div className="py-10 text-center border border-dashed border-zinc-800 rounded-2xl p-6 bg-zinc-950/40">
+                    <Eye className="w-8 h-8 text-cyan-400 mx-auto mb-2 opacity-80" />
+                    <h4 className="text-sm font-bold text-zinc-200">Execution Profiler Inactive</h4>
+                    <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
+                      Click the glowing <strong className="text-cyan-300">Visualize</strong> button in the top toolbar to trace your code against the active test case.
+                    </p>
+                    <button
+                      onClick={handleVisualizeExecution}
+                      className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow-md shadow-cyan-950/50 transition-all cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Trace &amp; Visualize Now</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
