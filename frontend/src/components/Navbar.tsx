@@ -3,15 +3,26 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Code2, Trophy, Cpu, LayoutDashboard, LogOut, LogIn, ShieldCheck } from "lucide-react";
+import { Code2, Trophy, Cpu, LayoutDashboard, LogOut, LogIn, ShieldCheck, Sun, Moon } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
   const [user, setUser] = useState<{ name: string; role: string } | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   useEffect(() => {
     setMounted(true);
+    const savedTheme = (localStorage.getItem("theme") as "dark" | "light") || "dark";
+    setTheme(savedTheme);
+    if (savedTheme === "light") {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+      document.documentElement.classList.add("dark");
+    }
+
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
@@ -24,6 +35,21 @@ export default function Navbar() {
       setUser(null);
     }
   }, [pathname]);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    try {
+      localStorage.setItem("theme", nextTheme);
+    } catch {}
+    if (nextTheme === "light") {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+      document.documentElement.classList.add("dark");
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -89,6 +115,26 @@ export default function Navbar() {
             <ShieldCheck className="h-4 w-4" /> ADMIN PANEL
           </Link>
         )}
+
+        {/* Light and Dark Themes Button to the right of Admin Panel button */}
+        <button
+          onClick={toggleTheme}
+          aria-label="Toggle Light and Dark Theme"
+          title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
+          className="flex items-center gap-1.5 py-1 px-2.5 rounded-lg border border-zinc-800/80 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all cursor-pointer font-mono text-xs select-none shadow-sm"
+        >
+          {theme === "dark" ? (
+            <>
+              <Sun className="h-3.5 w-3.5 text-amber-400" />
+              <span className="text-[10px] font-bold text-amber-400">LIGHT</span>
+            </>
+          ) : (
+            <>
+              <Moon className="h-3.5 w-3.5 text-indigo-400" />
+              <span className="text-[10px] font-bold text-indigo-400">DARK</span>
+            </>
+          )}
+        </button>
       </nav>
 
       <div className="flex items-center gap-3">
