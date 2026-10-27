@@ -30,18 +30,30 @@ async function importData() {
 
   for (const user of dump.users) {
     const { id, createdAt, updatedAt, role, ...userData } = user;
-    const upserted = await prisma.user.upsert({
-      where: { email: user.email },
-      update: {
-        ...userData,
-        role: role as any,
-      },
-      create: {
-        ...userData,
-        role: role as any,
-      },
+    const existing = await prisma.user.findFirst({
+      where: { email: user.email, deletedAt: null },
     });
-    userMap.set(id.toString(), upserted.id);
+
+    let userId: bigint;
+    if (existing) {
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          ...userData,
+          role: role as any,
+        },
+      });
+      userId = existing.id;
+    } else {
+      const created = await prisma.user.create({
+        data: {
+          ...userData,
+          role: role as any,
+        },
+      });
+      userId = created.id;
+    }
+    userMap.set(id.toString(), userId);
   }
   console.log(`✓ Seeded ${dump.users.length} users.`);
 
@@ -53,31 +65,43 @@ async function importData() {
     const { id, testCases, problemTags, createdAt, updatedAt, authorId, difficulty, visibility, ...probData } = prob;
     const newAuthorId = authorId ? userMap.get(authorId.toString()) || null : null;
 
-    const upsertedProblem = await prisma.problem.upsert({
-      where: { slug: prob.slug },
-      update: {
-        ...probData,
-        difficulty: difficulty as any,
-        visibility: visibility as any,
-        authorId: newAuthorId,
-      },
-      create: {
-        ...probData,
-        difficulty: difficulty as any,
-        visibility: visibility as any,
-        authorId: newAuthorId,
-      },
+    const existing = await prisma.problem.findFirst({
+      where: { slug: prob.slug, deletedAt: null },
     });
+
+    let problemId: bigint;
+    if (existing) {
+      await prisma.problem.update({
+        where: { id: existing.id },
+        data: {
+          ...probData,
+          difficulty: difficulty as any,
+          visibility: visibility as any,
+          authorId: newAuthorId,
+        },
+      });
+      problemId = existing.id;
+    } else {
+      const created = await prisma.problem.create({
+        data: {
+          ...probData,
+          difficulty: difficulty as any,
+          visibility: visibility as any,
+          authorId: newAuthorId,
+        },
+      });
+      problemId = created.id;
+    }
 
     // Delete existing test cases for this problem to prevent duplicate piling
     await prisma.testCase.deleteMany({
-      where: { problemId: upsertedProblem.id },
+      where: { problemId },
     });
 
     // Bulk insert all test cases for this problem
     if (testCases && testCases.length > 0) {
       const testCasesToInsert = testCases.map((tc: any) => ({
-        problemId: upsertedProblem.id,
+        problemId,
         orderNo: tc.orderNo ?? 0,
         input: tc.input ?? "",
         expectedOutput: tc.expectedOutput ?? "",
@@ -113,20 +137,29 @@ async function importData() {
         if (foundProb) targetProblemId = foundProb.id;
       }
 
-      await prisma.mockInterview.upsert({
+      const existingInterview = await prisma.mockInterview.findUnique({
         where: { id },
-        update: {
-          ...interviewData,
-          userId: targetUserId,
-          problemId: targetProblemId,
-        },
-        create: {
-          id,
-          ...interviewData,
-          userId: targetUserId,
-          problemId: targetProblemId,
-        },
       });
+
+      if (existingInterview) {
+        await prisma.mockInterview.update({
+          where: { id },
+          data: {
+            ...interviewData,
+            userId: targetUserId,
+            problemId: targetProblemId,
+          },
+        });
+      } else {
+        await prisma.mockInterview.create({
+          data: {
+            id,
+            ...interviewData,
+            userId: targetUserId,
+            problemId: targetProblemId,
+          },
+        });
+      }
     }
     console.log(`✓ Imported mock interview records.`);
   }
@@ -145,18 +178,27 @@ async function importData() {
       });
       if (foundProb) targetProblemId = foundProb.id;
 
-      await prisma.arenaMatchRecord.upsert({
+      const existingMatch = await prisma.arenaMatchRecord.findUnique({
         where: { id },
-        update: {
-          ...matchData,
-          problemId: targetProblemId,
-        },
-        create: {
-          id,
-          ...matchData,
-          problemId: targetProblemId,
-        },
       });
+
+      if (existingMatch) {
+        await prisma.arenaMatchRecord.update({
+          where: { id },
+          data: {
+            ...matchData,
+            problemId: targetProblemId,
+          },
+        });
+      } else {
+        await prisma.arenaMatchRecord.create({
+          data: {
+            id,
+            ...matchData,
+            problemId: targetProblemId,
+          },
+        });
+      }
     }
     console.log(`✓ Imported arena match records.`);
   }
