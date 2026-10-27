@@ -80,8 +80,8 @@ flowchart TB
 
     subgraph Sandboxes ["Docker Micro-Containers"]
         PyBox["python:3.11-slim (256MB / No-Network)"]
-        CppBox["gcc:13-alpine (256MB / No-Network)"]
-        NodeBox["node:20-alpine (256MB / No-Network)"]
+        CppBox["gcc:11 (256MB / No-Network)"]
+        NodeBox["node:20-slim (256MB / No-Network)"]
     end
 
     subgraph Persistence ["Persistence & Intelligence"]

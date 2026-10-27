@@ -25,8 +25,8 @@ sudo systemctl start docker
 
 echo "📦 [3/6] Pre-pulling Compiler Sandbox Docker Images..."
 sudo docker pull python:3.11-slim
-sudo docker pull gcc:13-alpine
-sudo docker pull node:20-alpine
+sudo docker pull gcc:11
+sudo docker pull node:20-slim
 
 echo "🟢 [4/6] Installing Node.js 20.x LTS & PM2 Process Manager..."
 if ! command -v node &> /dev/null; then

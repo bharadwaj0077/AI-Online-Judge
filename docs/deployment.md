@@ -131,7 +131,7 @@ docker run -d \
    chmod +x scripts/aws-setup.sh
    ./scripts/aws-setup.sh
    ```
-   *This script automatically updates Ubuntu, installs Docker, Node.js 20, PM2, Nginx, UFW firewall, and pre-pulls all compiler Docker images (`python:3.11-slim`, `gcc:13-alpine`, `node:20-alpine`).*
+   *This script automatically updates Ubuntu, installs Docker, Node.js 20, PM2, Nginx, UFW firewall, and pre-pulls all compiler Docker images (`python:3.11-slim`, `gcc:11`, `node:20-slim`).*
 
 4. Log out and reconnect so your user's Docker permissions take effect:
    ```bash

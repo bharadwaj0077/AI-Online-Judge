@@ -37,8 +37,8 @@ flowchart TB
     subgraph ExecutionLayer ["Isolated Code Sandbox Engine"]
         DockerHost["Docker Micro-Containers"]
         PyRunner["python:3.11-slim (256MB / No-Network)"]
-        CppRunner["gcc:13-alpine (256MB / No-Network)"]
-        NodeRunner["node:20-alpine (256MB / No-Network)"]
+        CppRunner["gcc:11 (256MB / No-Network)"]
+        NodeRunner["node:20-slim (256MB / No-Network)"]
     end
 
     subgraph PersistenceLayer ["Storage & Intelligence Tier"]
