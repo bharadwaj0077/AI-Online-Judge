@@ -890,19 +890,19 @@ export class MockInterviewService {
    * Initializes a new Mock Interview Session
    */
   static async createInterview(config: InterviewConfig) {
-    let problemTitle = "Optimal Subarray Sum";
-    let problemStatement = "Given an array of integers and a target constraint, find the optimal subset or indices satisfying operational criteria with minimal time complexity.";
-    let constraintsText = "1 <= N <= 10^5, -10^9 <= elements <= 10^9";
+    let problemTitle = "Maximum Subarray (Kadane's Algorithm)";
+    let problemStatement = "Given an integer array nums, find the subarray with the largest sum, and return its sum.";
+    let constraintsText = "1 <= nums.length <= 10^5, -10^4 <= nums[i] <= 10^4";
     const defaultTemplates: Record<string, string> = {
-      python3: "class Solution:\n    def solve(self, *args):\n        # Write your code here\n        pass",
-      javascript: "class Solution {\n    solve(...args) {\n        // Write your code here\n    }\n}",
-      cpp17: "#include <vector>\n#include <string>\nusing namespace std;\n\nclass Solution {\npublic:\n    void solve() {\n        // Write your code here\n    }\n};",
-      java17: "import java.util.*;\n\nclass Solution {\n    public void solve() {\n        // Write your code here\n    }\n}"
+      python3: "class Solution:\n    def maxSubArray(self, nums: List[int]) -> int:\n        # Write your code here\n        pass",
+      javascript: "class Solution {\n    maxSubArray(nums) {\n        // Write your code here\n    }\n}",
+      cpp17: "#include <vector>\nusing namespace std;\n\nclass Solution {\npublic:\n    int maxSubArray(vector<int>& nums) {\n        // Write your code here\n        return 0;\n    }\n};",
+      java17: "import java.util.*;\n\nclass Solution {\n    public int maxSubArray(int[] nums) {\n        // Write your code here\n        return 0;\n    }\n}"
     };
     let templates: Record<string, string> = { ...defaultTemplates };
     let finalTestCases: Array<{ id: string; orderNo: number; input: string; expectedOutput: string; isSample: boolean }> = [
-      { id: "1", orderNo: 1, input: "[2, 7, 11, 15], target = 9", expectedOutput: "[0, 1]", isSample: true },
-      { id: "2", orderNo: 2, input: "[3, 2, 4], target = 6", expectedOutput: "[1, 2]", isSample: true }
+      { id: "1", orderNo: 1, input: "nums = [-2, 1, -3, 4, -1, 2, 1, -5, 4]", expectedOutput: "6", isSample: true },
+      { id: "2", orderNo: 2, input: "nums = [5, 4, -1, 7, 8]", expectedOutput: "23", isSample: true }
     ];
     let resolvedProblemId: bigint | null = null;
 
@@ -1011,14 +1011,14 @@ Respond strictly in JSON format with:
         const diffUpper = config.difficulty.toUpperCase();
         let candidates = await prisma.problem.findMany({
           where: { difficulty: diffUpper as any, deletedAt: null },
-          include: { testCases: { where: { isSample: true } } },
+          include: { testCases: true },
           take: 10
         });
 
         if (candidates.length === 0) {
           candidates = await prisma.problem.findMany({
             where: { deletedAt: null },
-            include: { testCases: { where: { isSample: true } } },
+            include: { testCases: true },
             take: 10
           });
         }
@@ -1039,16 +1039,18 @@ Respond strictly in JSON format with:
           } catch {}
         }
 
-        const sampleTestCases = (problem.testCases || []).map((tc: any, idx: number) => ({
-          id: tc.id ? tc.id.toString() : (idx + 1).toString(),
-          orderNo: tc.orderNo || idx + 1,
-          input: tc.input || "",
-          expectedOutput: tc.expectedOutput || "",
-          isSample: tc.isSample !== false
-        }));
+        const allCases = problem.testCases || [];
+        const samples = allCases.filter((tc: any) => tc.isSample !== false && tc.isSample === true);
+        const candidateCases = samples.length > 0 ? samples : allCases.slice(0, 2);
 
-        if (sampleTestCases.length > 0) {
-          finalTestCases = sampleTestCases;
+        if (candidateCases.length > 0) {
+          finalTestCases = candidateCases.map((tc: any, idx: number) => ({
+            id: tc.id ? tc.id.toString() : (idx + 1).toString(),
+            orderNo: tc.orderNo || idx + 1,
+            input: tc.input || "",
+            expectedOutput: tc.expectedOutput || "",
+            isSample: true
+          }));
         }
       }
     }
@@ -1096,7 +1098,10 @@ Respond strictly in JSON format with:
           eyeContactScore: 92,
           interruptions: 0,
           codeRuns: 0,
-          durationElapsedSec: 0
+          durationElapsedSec: 0,
+          testCases: finalTestCases,
+          templates: templates,
+          constraintsText: constraintsText
         } as any,
         startTime: new Date()
       }
@@ -1652,9 +1657,7 @@ Conduct a comprehensive FAANG-caliber candidate debrief and output an authoritat
             constraintsText: true,
             difficulty: true,
             inputTemplate: true,
-            testCases: {
-              where: { isSample: true }
-            }
+            testCases: true
           }
         }
       }
@@ -1662,33 +1665,120 @@ Conduct a comprehensive FAANG-caliber candidate debrief and output an authoritat
 
     if (!interview) return null;
 
-    const defaultTemplates = {
+    const defaultTemplates: Record<string, string> = {
       python3: "class Solution:\n    def solve(self, *args):\n        # Write your code here\n        pass",
       javascript: "class Solution {\n    solve(...args) {\n        // Write your code here\n    }\n}",
       cpp17: "#include <vector>\n#include <string>\nusing namespace std;\n\nclass Solution {\npublic:\n    void solve() {\n        // Write your code here\n    }\n};",
       java17: "import java.util.*;\n\nclass Solution {\n    public void solve() {\n        // Write your code here\n    }\n}"
     };
 
+    const telemetry = (interview.telemetry as any) || {};
+
+    // 1. Resolve domain problem match from CS_FUNDAMENTALS_PROBLEMS
+    const allDomainProblems: any[] = Object.values(CS_FUNDAMENTALS_PROBLEMS).flat();
+    const problemTitleLower = (interview.problemTitle || "").toLowerCase().trim();
+    const matchedDomainProblem = allDomainProblems.find(
+      (p) =>
+        (p.title && p.title.toLowerCase().trim() === problemTitleLower) ||
+        (p.id && p.id.toLowerCase().trim() === problemTitleLower) ||
+        (problemTitleLower && p.title && (problemTitleLower.includes(p.title.toLowerCase()) || p.title.toLowerCase().includes(problemTitleLower)))
+    );
+
+    // 2. Resolve templates dynamically
     let templates = { ...defaultTemplates };
-    if (interview.problem?.inputTemplate) {
+    if (telemetry.templates && typeof telemetry.templates === "object" && Object.keys(telemetry.templates).length > 0) {
+      templates = { ...defaultTemplates, ...telemetry.templates };
+    } else if (matchedDomainProblem?.templates) {
+      templates = { ...defaultTemplates, ...matchedDomainProblem.templates };
+    } else if (interview.problem?.inputTemplate) {
       try {
         const parsed = JSON.parse(interview.problem.inputTemplate);
         templates = { ...defaultTemplates, ...parsed };
       } catch {}
     }
 
-    const sampleTestCases = (interview.problem?.testCases || []).map((tc: any, idx: number) => ({
-      id: tc.id ? tc.id.toString() : (idx + 1).toString(),
-      orderNo: tc.orderNo || idx + 1,
-      input: tc.input || "",
-      expectedOutput: tc.expectedOutput || "",
-      isSample: tc.isSample !== false
-    }));
+    // 3. Resolve constraintsText
+    const constraintsText =
+      telemetry.constraintsText ||
+      matchedDomainProblem?.constraintsText ||
+      interview.problem?.constraintsText ||
+      "1 <= N <= 10^5";
 
-    const finalTestCases = sampleTestCases.length > 0 ? sampleTestCases : [
-      { id: "1", orderNo: 1, input: "[2, 7, 11, 15], 9", expectedOutput: "[0, 1]", isSample: true },
-      { id: "2", orderNo: 2, input: "[3, 2, 4], 6", expectedOutput: "[1, 2]", isSample: true }
-    ];
+    // 4. Resolve test cases dynamically (Zero hardcoding)
+    let finalTestCases: Array<{ id: string; orderNo: number; input: string; expectedOutput: string; isSample: boolean }> = [];
+
+    // Priority 1: Telemetry stored testCases
+    if (Array.isArray(telemetry.testCases) && telemetry.testCases.length > 0) {
+      finalTestCases = telemetry.testCases;
+    }
+    // Priority 2: Matched CS Fundamentals problem testCases (e.g. IPv4 CIDR, Token Bucket, LRU)
+    else if (matchedDomainProblem && Array.isArray(matchedDomainProblem.testCases) && matchedDomainProblem.testCases.length > 0) {
+      finalTestCases = matchedDomainProblem.testCases;
+    }
+    // Priority 3: Database Problem testCases
+    else if (interview.problem?.testCases && interview.problem.testCases.length > 0) {
+      const sampleCases = interview.problem.testCases.filter((tc: any) => tc.isSample !== false && tc.isSample === true);
+      const chosenCases = sampleCases.length > 0 ? sampleCases : interview.problem.testCases.slice(0, 2);
+      finalTestCases = chosenCases.map((tc: any, idx: number) => ({
+        id: tc.id ? tc.id.toString() : (idx + 1).toString(),
+        orderNo: tc.orderNo || idx + 1,
+        input: tc.input || "",
+        expectedOutput: tc.expectedOutput || "",
+        isSample: true
+      }));
+    }
+    // Priority 4: Dynamic parsing from problem statement
+    else if (interview.problemStatement) {
+      const regex = /(?:Example\s*\d*[:\s]*)?Input:\s*([^\n\r]+)[\s\S]*?(?:Expected\s*)?Output:\s*([^\n\r]+)/gi;
+      let match;
+      let idx = 1;
+      while ((match = regex.exec(interview.problemStatement)) !== null && idx <= 3) {
+        const inStr = match[1].replace(/^[`"']|[`"']$/g, "").trim();
+        const outStr = match[2].replace(/^[`"']|[`"']$/g, "").trim();
+        if (inStr && outStr) {
+          finalTestCases.push({
+            id: idx.toString(),
+            orderNo: idx,
+            input: inStr,
+            expectedOutput: outStr,
+            isSample: true
+          });
+          idx++;
+        }
+      }
+    }
+
+    // Priority 5: Dynamic domain-aware fallback if all else fails (NEVER Two Sum!)
+    if (finalTestCases.length === 0) {
+      const tLower = problemTitleLower;
+      if (tLower.includes("subnet") || tLower.includes("cidr") || tLower.includes("ipv4") || tLower.includes("network")) {
+        finalTestCases = [
+          { id: "1", orderNo: 1, input: '"192.168.1.130/26"', expectedOutput: '{"network": "192.168.1.128", "broadcast": "192.168.1.191", "firstHost": "192.168.1.129", "lastHost": "192.168.1.190", "usableHosts": 62}', isSample: true },
+          { id: "2", orderNo: 2, input: '"10.0.0.1/8"', expectedOutput: '{"network": "10.0.0.0", "broadcast": "10.255.255.255", "firstHost": "10.0.0.1", "lastHost": "10.255.255.254", "usableHosts": 16777214}', isSample: true }
+        ];
+      } else if (tLower.includes("rate limit") || tLower.includes("token bucket")) {
+        finalTestCases = [
+          { id: "1", orderNo: 1, input: "capacity = 5, rate = 2.0/s, packets: [(1, 0.0), (3, 0.0), (2, 0.0)]", expectedOutput: "[true, true, false]", isSample: true }
+        ];
+      } else if (tLower.includes("lru") || tLower.includes("page replacement") || tLower.includes("cache")) {
+        finalTestCases = [
+          { id: "1", orderNo: 1, input: "framesCount = 3, pageReferences = [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2]", expectedOutput: "pageFaults = 10, finalFrames = [2, 3, 0]", isSample: true }
+        ];
+      } else if (tLower.includes("producer") || tLower.includes("bounded") || tLower.includes("blocking queue")) {
+        finalTestCases = [
+          { id: "1", orderNo: 1, input: "capacity = 2, operations: [enqueue(1), enqueue(2), dequeue(), enqueue(3)]", expectedOutput: "[1, 2, 1, 2]", isSample: true }
+        ];
+      } else if (tLower.includes("b-tree") || tLower.includes("indexing") || tLower.includes("dbms")) {
+        finalTestCases = [
+          { id: "1", orderNo: 1, input: "order = 3, keys: [10, 20, 5, 6, 12, 30, 7, 17]", expectedOutput: "rootHeight = 2, totalNodes = 5", isSample: true }
+        ];
+      } else {
+        finalTestCases = [
+          { id: "1", orderNo: 1, input: "nums = [-2, 1, -3, 4, -1, 2, 1, -5, 4]", expectedOutput: "6", isSample: true },
+          { id: "2", orderNo: 2, input: "nums = [5, 4, -1, 7, 8]", expectedOutput: "23", isSample: true }
+        ];
+      }
+    }
 
     return {
       id: interview.id,
@@ -1711,7 +1801,7 @@ Conduct a comprehensive FAANG-caliber candidate debrief and output an authoritat
         id: interview.problem?.id ? interview.problem.id.toString() : (interview.problemId ? interview.problemId.toString() : "custom"),
         title: interview.problemTitle || interview.problem?.title || "Algorithmic Challenge",
         statement: interview.problemStatement || interview.problem?.statement || "",
-        constraintsText: interview.problem?.constraintsText || "1 <= N <= 10^5",
+        constraintsText,
         templates,
         testCases: finalTestCases
       }

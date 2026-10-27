@@ -237,10 +237,45 @@ export default function MockInterviewArenaPage() {
             }))
           );
         } else {
-          setTestCases([
-            { id: 1, label: "Case 1", input: "[2, 7, 11, 15], 9", expectedOutput: "[0, 1]", actualOutput: "", stdout: "", error: null, status: "PENDING" },
-            { id: 2, label: "Case 2", input: "[3, 2, 4], 6", expectedOutput: "[1, 2]", actualOutput: "", stdout: "", error: null, status: "PENDING" }
-          ]);
+          // Dynamic fallback based on problem statement or signature - NEVER hardcoded Two Sum
+          const stmt = data.problem?.statement || "";
+          const regex = /(?:Example\s*\d*[:\s]*)?Input:\s*([^\n\r]+)[\s\S]*?(?:Expected\s*)?Output:\s*([^\n\r]+)/gi;
+          let match;
+          const extracted: any[] = [];
+          let idx = 1;
+          while ((match = regex.exec(stmt)) !== null && idx <= 2) {
+            const inVal = match[1].replace(/^[`"']|[`"']$/g, "").trim();
+            const outVal = match[2].replace(/^[`"']|[`"']$/g, "").trim();
+            if (inVal && outVal) {
+              extracted.push({
+                id: idx,
+                label: `Case ${idx}`,
+                input: inVal,
+                expectedOutput: outVal,
+                actualOutput: "",
+                stdout: "",
+                error: null,
+                status: "PENDING"
+              });
+              idx++;
+            }
+          }
+          if (extracted.length > 0) {
+            setTestCases(extracted);
+          } else {
+            const pTitle = (data.problem?.title || "").toLowerCase();
+            if (pTitle.includes("subnet") || pTitle.includes("cidr") || pTitle.includes("ip") || pTitle.includes("network")) {
+              setTestCases([
+                { id: 1, label: "Case 1", input: '"192.168.1.130/26"', expectedOutput: '{"network": "192.168.1.128", "broadcast": "192.168.1.191", "firstHost": "192.168.1.129", "lastHost": "192.168.1.190", "usableHosts": 62}', actualOutput: "", stdout: "", error: null, status: "PENDING" },
+                { id: 2, label: "Case 2", input: '"10.0.0.1/8"', expectedOutput: '{"network": "10.0.0.0", "broadcast": "10.255.255.255", "firstHost": "10.0.0.1", "lastHost": "10.255.255.254", "usableHosts": 16777214}', actualOutput: "", stdout: "", error: null, status: "PENDING" }
+              ]);
+            } else {
+              setTestCases([
+                { id: 1, label: "Case 1", input: "nums = [-2, 1, -3, 4, -1, 2, 1, -5, 4]", expectedOutput: "6", actualOutput: "", stdout: "", error: null, status: "PENDING" },
+                { id: 2, label: "Case 2", input: "nums = [5, 4, -1, 7, 8]", expectedOutput: "23", actualOutput: "", stdout: "", error: null, status: "PENDING" }
+              ]);
+            }
+          }
         }
 
         // Initialize transcript
@@ -829,6 +864,7 @@ export default function MockInterviewArenaPage() {
             sourceCode: editorCode,
             language: selectedLang,
             customInput: tc.input,
+            expectedOutput: tc.expectedOutput,
             problemId: sessionData.problem.id
           });
 
